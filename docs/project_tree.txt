@@ -1,0 +1,56 @@
+.
+├── .DS_Store
+├── .github
+│   └── workflows
+├── .gitignore
+├── apps
+│   ├── backend
+│   │   ├── package.json
+│   │   ├── src
+│   │   │   ├── index.ts
+│   │   │   ├── middleware
+│   │   │   ├── routes
+│   │   │   ├── services
+│   │   │   └── utils
+│   │   └── tsconfig.json
+│   ├── shopify-extension
+│   │   ├── assets
+│   │   │   └── adlign-micro-kernel.js
+│   │   ├── blocks
+│   │   ├── package.json
+│   │   ├── shopify.app.toml
+│   │   └── snippets
+│   ├── web
+│   │   └── src
+│   └── worker-mapping
+│       ├── package.json
+│       ├── src
+│       │   ├── index.ts
+│       │   ├── jobs
+│       │   ├── services
+│       │   └── utils
+│       └── tsconfig.json
+├── docs
+│   ├── cursor_instructions.md
+│   ├── project_structure.md
+│   ├── project_tree.txt
+│   └── README.md
+├── infra
+│   └── supabase
+├── package.json
+├── packages
+│   ├── sdk
+│   │   └── package.json
+│   └── types
+│       ├── package.json
+│       ├── src
+│       │   ├── analytics.ts
+│       │   ├── index.ts
+│       │   ├── mapping.ts
+│       │   ├── shopify.ts
+│       │   └── variant.ts
+│       └── tsconfig.json
+├── README.md
+└── turbo.json
+
+28 directories, 26 files

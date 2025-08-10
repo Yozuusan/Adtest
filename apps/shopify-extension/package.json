@@ -1,0 +1,22 @@
+{
+  "name": "@adlign/shopify-extension",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "shopify app build",
+    "dev": "shopify app dev",
+    "deploy": "shopify app deploy",
+    "lint": "eslint assets/**/*.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@shopify/shopify-app-express": "^2.0.0"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3.0.0",
+    "@shopify/theme": "^3.0.0",
+    "@types/node": "^20.8.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.52.0"
+  }
+}
