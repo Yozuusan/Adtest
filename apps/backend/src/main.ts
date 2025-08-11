@@ -2,13 +2,20 @@ import express from 'express';
 import cors from 'cors';
 import { initSentry, sentryRequestHandler, sentryErrorHandler } from './monitoring/sentry';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { validateEnvironment } from './utils/env-validation';
 
-// Debug: vérifier que les variables sont chargées
-console.log('🔧 Variables d\'environnement chargées:');
-console.log('  APP_URL:', process.env.APP_URL);
-console.log('  SHOPIFY_API_KEY:', process.env.SHOPIFY_API_KEY ? '✅ défini' : '❌ undefined');
-console.log('  SHOPIFY_API_SECRET:', process.env.SHOPIFY_API_SECRET ? '✅ défini' : '❌ undefined');
-console.log('  PORT:', process.env.PORT);
+// Valider les variables d'environnement au démarrage
+try {
+  const env = validateEnvironment();
+  console.log('✅ Variables d\'environnement validées avec succès');
+  console.log('  APP_URL:', env.APP_URL);
+  console.log('  PORT:', env.PORT);
+  console.log('  SUPABASE_URL:', env.SUPABASE_URL ? '✅ défini' : '❌ undefined');
+  console.log('  SHOPIFY_API_KEY:', env.SHOPIFY_API_KEY ? '✅ défini' : '❌ undefined');
+} catch (error) {
+  console.error('❌ Erreur de validation des variables d\'environnement:', error.message);
+  process.exit(1);
+}
 
 // Import des routes
 import oauthRoutes from './routes/oauth';

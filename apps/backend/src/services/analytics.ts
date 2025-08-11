@@ -1,22 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { AnalyticsEvent } from '@adlign/types';
-
-// Type local pour la base de données Supabase
-interface SupabaseAnalyticsEvent {
-  id: string;
-  event_type: string;
-  shop: string;
-  variant_handle: string;
-  product_gid: string;
-  user_agent?: string;
-  timestamp: string;
-  created_at: string;
-}
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseService } from './supabase';
 
 export class AnalyticsService {
   /**
@@ -25,27 +8,19 @@ export class AnalyticsService {
   async saveEvent(event: AnalyticsEvent): Promise<void> {
     try {
       // Convertir le type AnalyticsEvent vers SupabaseAnalyticsEvent
-      const supabaseEvent: SupabaseAnalyticsEvent = {
-        id: event.id,
+      const supabaseEvent = {
+        shop_domain: event.metadata?.shop || 'unknown',
         event_type: event.event_type,
-        shop: event.metadata?.shop || 'unknown',
         variant_handle: event.variant_id,
         product_gid: event.product_gid,
+        campaign_ref: event.campaign_ref,
         user_agent: event.user_agent,
         timestamp: event.timestamp,
-        created_at: new Date().toISOString()
+        metadata: event.metadata || {}
       };
 
-      const { error } = await supabase
-        .from('analytics_events')
-        .insert(supabaseEvent);
-
-      if (error) {
-        console.error('❌ Error saving analytics event:', error);
-        throw new Error(`Failed to save analytics event: ${error.message}`);
-      }
-
-      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${supabaseEvent.shop}`);
+      await supabaseService.saveAnalyticsEvent(supabaseEvent);
+      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${supabaseEvent.shop_domain}`);
     } catch (error) {
       console.error('❌ Analytics service error:', error);
       throw error;
@@ -59,16 +34,7 @@ export class AnalyticsService {
     try {
       const startDate = this.getStartDate(period);
       
-      const { data, error } = await supabase
-        .from('analytics_events')
-        .select('*')
-        .eq('shop', shop)
-        .gte('timestamp', startDate.toISOString());
-
-      if (error) {
-        console.error('❌ Error fetching analytics stats:', error);
-        throw new Error(`Failed to fetch analytics stats: ${error.message}`);
-      }
+      const data = await supabaseService.getAnalyticsStats(shop, startDate.toISOString());
 
       // Calculer les statistiques
       const stats = this.calculateStats(data || [], period);
@@ -91,26 +57,23 @@ export class AnalyticsService {
    */
   async getEvents(shop: string, limit: number, offset: number): Promise<any> {
     try {
-      const { data, error, count } = await supabase
-        .from('analytics_events')
-        .select('*', { count: 'exact' })
-        .eq('shop', shop)
-        .order('timestamp', { ascending: false })
-        .range(offset, offset + limit - 1);
+      // Pour l'instant, on utilise getAnalyticsStats avec une période large
+      // TODO: Implémenter une vraie pagination dans SupabaseService
+      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // 90 jours
+      const data = await supabaseService.getAnalyticsStats(shop, startDate.toISOString());
 
-      if (error) {
-        console.error('❌ Error fetching analytics events:', error);
-        throw new Error(`Failed to fetch analytics events: ${error.message}`);
-      }
-
+      // Simuler la pagination côté application
+      const total = data?.length || 0;
+      const paginatedData = data?.slice(offset, offset + limit) || [];
+      
       return {
         shop,
-        events: data || [],
+        events: paginatedData,
         pagination: {
           limit,
           offset,
-          total: count || 0,
-          has_more: (count || 0) > offset + limit
+          total,
+          has_more: total > offset + limit
         },
         retrieved_at: new Date().toISOString()
       };
@@ -127,19 +90,11 @@ export class AnalyticsService {
     try {
       const startDate = this.getStartDate(period);
       
-      const { data, error } = await supabase
-        .from('analytics_events')
-        .select('*')
-        .eq('shop', shop)
-        .eq('variant_handle', variantHandle)
-        .gte('timestamp', startDate.toISOString());
+      // Récupérer tous les événements et filtrer par variant
+      const data = await supabaseService.getAnalyticsStats(shop, startDate.toISOString());
+      const variantEvents = data?.filter((event: any) => event.variant_handle === variantHandle) || [];
 
-      if (error) {
-        console.error('❌ Error fetching variant performance:', error);
-        throw new Error(`Failed to fetch variant performance: ${error.message}`);
-      }
-
-      const performance = this.calculateVariantPerformance(data || [], period);
+      const performance = this.calculateVariantPerformance(variantEvents, period);
       
       return {
         shop,

@@ -1,50 +1,24 @@
-import { Queue } from 'bullmq';
-import { Redis } from '@upstash/redis';
-
-// Configuration Redis pour BullMQ (nécessite une connexion Redis standard)
-// Upstash Redis REST ne fonctionne pas directement avec BullMQ
-// On va utiliser une approche différente pour l'instant
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  db: parseInt(process.env.REDIS_DB || '0')
-};
-
-export interface MappingJob {
-  id: string;
-  shop_id: string;
-  product_url?: string;
-  product_gid?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  priority: 'low' | 'normal' | 'high';
-  created_at: string;
-  estimated_duration: string;
-  result?: any;
-  error?: string;
-}
+import { MappingJob } from '@adlign/types';
+import { supabaseService } from './supabase';
 
 export class QueueService {
-  private mappingQueue!: Queue; // Utilisation de l'assertion de non-nullité
-
-  constructor() {
-    // Pour l'instant, on va simuler la queue sans Redis
-    // TODO: Implémenter une vraie queue avec Redis standard ou alternative
-    console.log('⚠️ Queue service initialisé en mode simulation');
-  }
-
   /**
    * Enqueuer un job de mapping
    */
   async enqueueMappingJob(job: Omit<MappingJob, 'id' | 'created_at'>): Promise<string> {
     try {
-      const jobId = `mapping_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-      
-      // Simulation d'enqueue (stockage en mémoire pour l'instant)
-      console.log(`✅ Mapping job enqueued (simulation): ${jobId} for shop ${job.shop_id}`);
-      
-      // TODO: Implémenter la vraie queue quand Redis sera configuré
-      return jobId;
+      // Créer le job dans Supabase
+      const supabaseJob = await supabaseService.createMappingJob({
+        shop_domain: job.shop_id,
+        product_url: job.product_url,
+        product_gid: job.product_gid,
+        status: 'pending',
+        priority: job.priority,
+        estimated_duration: job.estimated_duration
+      });
+
+      console.log(`✅ Mapping job enqueued in Supabase: ${supabaseJob.id} for shop ${job.shop_id}`);
+      return supabaseJob.id;
     } catch (error) {
       console.error('❌ Error enqueueing mapping job:', error);
       throw new Error(`Failed to enqueue mapping job: ${error}`);
@@ -56,19 +30,25 @@ export class QueueService {
    */
   async getJobStatus(jobId: string): Promise<MappingJob | null> {
     try {
-      // Simulation - retourne un job en attente
-      // TODO: Implémenter la vraie récupération quand Redis sera configuré
+      // Récupérer le job depuis Supabase
+      const supabaseJob = await supabaseService.getMappingJobById(jobId);
+      
+      if (!supabaseJob) {
+        return null;
+      }
+
+      // Convertir vers le type MappingJob
       return {
-        id: jobId,
-        shop_id: 'adlign.myshopify.com', // Valeur par défaut pour les tests
-        product_url: 'https://adlign.myshopify.com/products/test',
-        product_gid: undefined,
-        status: 'pending',
-        priority: 'normal',
-        created_at: new Date().toISOString(),
-        estimated_duration: '5-10 minutes',
-        result: undefined,
-        error: undefined
+        id: supabaseJob.id,
+        shop_id: supabaseJob.shop_domain,
+        product_url: supabaseJob.product_url,
+        product_gid: supabaseJob.product_gid,
+        status: supabaseJob.status,
+        priority: supabaseJob.priority,
+        created_at: supabaseJob.created_at,
+        estimated_duration: supabaseJob.estimated_duration || '5-10 minutes',
+        result: supabaseJob.result,
+        error: supabaseJob.error
       };
     } catch (error) {
       console.error('❌ Error getting job status:', error);
@@ -89,17 +69,29 @@ export class QueueService {
     };
   }> {
     try {
-      // Simulation - retourne une liste vide pour l'instant
-      // TODO: Implémenter la vraie liste quand Redis sera configuré
-      const jobs: MappingJob[] = [];
-      
+      const { jobs: supabaseJobs, total } = await supabaseService.getShopMappingJobs(shopId, status, limit, offset);
+
+      // Convertir vers le type MappingJob
+      const jobs: MappingJob[] = supabaseJobs.map(supabaseJob => ({
+        id: supabaseJob.id,
+        shop_id: supabaseJob.shop_domain,
+        product_url: supabaseJob.product_url,
+        product_gid: supabaseJob.product_gid,
+        status: supabaseJob.status,
+        priority: supabaseJob.priority,
+        created_at: supabaseJob.created_at,
+        estimated_duration: supabaseJob.estimated_duration || '5-10 minutes',
+        result: supabaseJob.result,
+        error: supabaseJob.error
+      }));
+
       return {
         jobs,
         pagination: {
           limit,
           offset,
-          total: 0,
-          has_more: false
+          total,
+          has_more: total > offset + limit
         }
       };
     } catch (error) {
@@ -113,9 +105,10 @@ export class QueueService {
    */
   async cancelJob(jobId: string): Promise<boolean> {
     try {
-      // Simulation - retourne toujours true pour l'instant
-      // TODO: Implémenter la vraie annulation quand Redis sera configuré
-      console.log(`✅ Job cancelled (simulation): ${jobId}`);
+      // Mettre à jour le statut du job dans Supabase
+      await supabaseService.updateMappingJobStatus(jobId, 'failed', undefined, 'Job cancelled by user');
+      
+      console.log(`✅ Job cancelled in Supabase: ${jobId}`);
       return true;
     } catch (error) {
       console.error('❌ Error cancelling job:', error);
@@ -124,51 +117,41 @@ export class QueueService {
   }
 
   /**
-   * Nettoyer les jobs terminés
+   * Mettre à jour le statut d'un job
    */
-  async cleanupCompletedJobs(): Promise<void> {
+  async updateJobStatus(jobId: string, status: MappingJob['status'], result?: any, error?: string): Promise<void> {
     try {
-      // Simulation - pas de nettoyage pour l'instant
-      // TODO: Implémenter le vrai nettoyage quand Redis sera configuré
-      console.log('✅ Completed jobs cleaned up (simulation)');
+      await supabaseService.updateMappingJobStatus(jobId, status, result, error);
+      console.log(`✅ Job status updated in Supabase: ${jobId} -> ${status}`);
     } catch (error) {
-      console.error('❌ Error cleaning up jobs:', error);
-    }
-  }
-
-  private getPriorityNumber(priority: string): number {
-    switch (priority) {
-      case 'low': return 10;
-      case 'normal': return 5;
-      case 'high': return 1;
-      default: return 5;
-    }
-  }
-
-  private mapJobStateToStatus(state: string): MappingJob['status'] {
-    switch (state) {
-      case 'waiting':
-      case 'delayed':
-        return 'pending';
-      case 'active':
-        return 'processing';
-      case 'completed':
-        return 'completed';
-      case 'failed':
-        return 'failed';
-      default:
-        return 'pending';
+      console.error('❌ Error updating job status:', error);
+      throw new Error(`Failed to update job status: ${error}`);
     }
   }
 
   /**
-   * Fermer les connexions
+   * Nettoyer les jobs terminés
+   */
+  async cleanupCompletedJobs(): Promise<void> {
+    try {
+      // Pour l'instant, on ne supprime pas les jobs terminés
+      // On pourrait ajouter une logique de nettoyage automatique plus tard
+      console.log('ℹ️ Cleanup completed jobs: not implemented yet');
+    } catch (error) {
+      console.error('❌ Error cleaning up completed jobs:', error);
+      // Ne pas faire échouer l'opération
+    }
+  }
+
+  /**
+   * Fermer le service
    */
   async close(): Promise<void> {
-    // Simulation - pas de connexion à fermer pour l'instant
-    // TODO: Implémenter la vraie fermeture quand Redis sera configuré
-    console.log('✅ Queue service closed (simulation)');
+    try {
+      await supabaseService.close();
+      console.log('✅ Queue service closed');
+    } catch (error) {
+      console.error('❌ Error closing queue service:', error);
+    }
   }
 }
-
-export const queueService = new QueueService();
