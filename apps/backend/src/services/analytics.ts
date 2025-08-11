@@ -1,6 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { AnalyticsEvent } from '@adlign/types';
 
+// Type local pour la base de données Supabase
+interface SupabaseAnalyticsEvent {
+  id: string;
+  event_type: string;
+  shop: string;
+  variant_handle: string;
+  product_gid: string;
+  user_agent?: string;
+  timestamp: string;
+  created_at: string;
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -12,25 +24,28 @@ export class AnalyticsService {
    */
   async saveEvent(event: AnalyticsEvent): Promise<void> {
     try {
+      // Convertir le type AnalyticsEvent vers SupabaseAnalyticsEvent
+      const supabaseEvent: SupabaseAnalyticsEvent = {
+        id: event.id,
+        event_type: event.event_type,
+        shop: event.metadata?.shop || 'unknown',
+        variant_handle: event.variant_id,
+        product_gid: event.product_gid,
+        user_agent: event.user_agent,
+        timestamp: event.timestamp,
+        created_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('analytics_events')
-        .insert({
-          id: event.id,
-          event_type: event.event_type,
-          shop: event.shop,
-          variant_handle: event.variant_handle,
-          product_gid: event.product_gid,
-          user_agent: event.user_agent,
-          timestamp: event.timestamp,
-          created_at: event.created_at
-        });
+        .insert(supabaseEvent);
 
       if (error) {
         console.error('❌ Error saving analytics event:', error);
         throw new Error(`Failed to save analytics event: ${error.message}`);
       }
 
-      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${event.shop}`);
+      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${supabaseEvent.shop}`);
     } catch (error) {
       console.error('❌ Analytics service error:', error);
       throw error;

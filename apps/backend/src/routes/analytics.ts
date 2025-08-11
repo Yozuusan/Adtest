@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createError } from '../middleware/errorHandler';
 import { analyticsService } from '../services/analytics';
+import { AnalyticsEvent } from '@adlign/types';
 
 const router = Router();
 
@@ -28,15 +29,19 @@ router.post('/', async (req, res, next) => {
     }
 
     // Créer l'événement analytics
-    const analyticsEvent = {
+    const analyticsEvent: AnalyticsEvent = {
       id: `evt_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-      event_type,
-      shop,
-      variant_handle: variant_handle || null,
-      product_gid: product_gid || null,
-      user_agent: user_agent || req.get('User-Agent') || null,
+      event_type: event_type as 'variant_view' | 'variant_click' | 'variant_conversion',
+      variant_id: variant_handle || 'unknown',
+      product_gid: product_gid || 'unknown',
+      campaign_ref: 'unknown', // À remplacer par la vraie valeur
+      user_agent: user_agent || req.get('User-Agent') || undefined,
       timestamp: timestamp || new Date().toISOString(),
-      created_at: new Date().toISOString()
+      metadata: {
+        shop,
+        variant_handle: variant_handle || null,
+        created_at: new Date().toISOString()
+      }
     };
 
     console.log(`📊 Analytics event: ${event_type} for shop ${shop}`);
@@ -49,7 +54,7 @@ router.post('/', async (req, res, next) => {
       data: {
         event_id: analyticsEvent.id,
         event_type: analyticsEvent.event_type,
-        shop: analyticsEvent.shop,
+        shop: analyticsEvent.metadata?.shop,
         timestamp: analyticsEvent.timestamp
       }
     });
@@ -77,7 +82,7 @@ router.get('/stats', async (req, res, next) => {
     }
 
     // Récupérer les stats depuis la base de données
-    const stats = await analyticsService.getStats(shop, period);
+    const stats = await analyticsService.getStats(shop as string, period as string);
 
     res.json({
       success: true,
@@ -133,7 +138,7 @@ router.get('/variant/:handle', async (req, res, next) => {
     }
 
     // Récupérer les performances du variant depuis la base de données
-    const performance = await analyticsService.getVariantPerformance(shop, handle, period);
+    const performance = await analyticsService.getVariantPerformance(shop as string, handle, period as string);
 
     res.json({
       success: true,

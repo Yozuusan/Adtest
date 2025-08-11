@@ -25,7 +25,7 @@ export interface MappingJob {
 }
 
 export class QueueService {
-  private mappingQueue: Queue;
+  private mappingQueue!: Queue; // Utilisation de l'assertion de non-nullité
 
   constructor() {
     // Pour l'instant, on va simuler la queue sans Redis

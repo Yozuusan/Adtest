@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "Adlign"
+client_id = "81dae9ca895642d2c6441720d1a0e609"
+application_url = "https://adlign-dev.loca.lt"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,write_products,read_metaobjects,write_metaobjects,read_themes,write_themes,read_files,write_files,read_product_listings"
+
+[auth]
+redirect_urls = [ "https://adlign-dev.loca.lt/oauth/callback" ]
+
+[webhooks]
+api_version = "2024-01"
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "adlign.myshopify.com"
+include_config_on_deploy = true

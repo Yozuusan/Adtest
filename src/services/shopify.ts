@@ -14,7 +14,6 @@ interface ShopifyMetaobject {
   id: string;
   handle: string;
   type: string;
-  value?: string;
   fields: Array<{
     key: string;
     value: string | number | boolean;
@@ -66,7 +65,7 @@ export class ShopifyService {
     this.redis = new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!
-  });
+    });
   }
 
   private get apiKey(): string {
@@ -74,8 +73,8 @@ export class ShopifyService {
       this._apiKey = process.env.SHOPIFY_API_KEY;
       if (!this._apiKey) {
         throw new Error('SHOPIFY_API_KEY environment variable is not defined');
+      }
     }
-  }
     return this._apiKey;
   }
 
@@ -84,18 +83,19 @@ export class ShopifyService {
       this._apiSecret = process.env.SHOPIFY_API_SECRET;
       if (!this._apiSecret) {
         throw new Error('SHOPIFY_API_SECRET environment variable is not defined');
+      }
     }
-  }
     return this._apiSecret;
   }
 
   private get appUrl(): string {
     if (!this._appUrl) {
+      // Pour les tests, on peut utiliser une URL qui fonctionne
       this._appUrl = process.env.APP_URL || 'https://api.adlign.com';
       if (!this._appUrl) {
         throw new Error('APP_URL environment variable is not defined');
+      }
     }
-  }
     return this._appUrl;
   }
 
@@ -111,7 +111,7 @@ export class ShopifyService {
       scope,
       redirect_uri: redirectUri,
       state: this.generateState(shop)
-  });
+    });
 
     return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
   }
@@ -125,17 +125,17 @@ export class ShopifyService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-      },
+        },
         body: JSON.stringify({
           client_id: this.apiKey,
           client_secret: this.apiSecret,
           code,
-      }),
-    });
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`Shopify OAuth error: ${response.statusText}`);
-    }
+      }
 
       const tokenData = await response.json() as ShopifyToken;
       
@@ -145,9 +145,9 @@ export class ShopifyService {
       await this.storeToken(shop, tokenData);
       
       return tokenData;
-  } catch (error) {
+    } catch (error) {
       throw createError(`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
+    }
   }
 
   /**
@@ -158,7 +158,7 @@ export class ShopifyService {
       const token = await this.getToken(shop);
       if (!token) {
         throw createError('Shop not authenticated', 401);
-    }
+      }
 
       const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json?namespace=adlign_data&key=settings`;
       
@@ -166,30 +166,30 @@ export class ShopifyService {
         method: 'GET',
         headers: {
           'X-Shopify-Access-Token': token.access_token,
-      },
-    });
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
           return null; // Metafield n'existe pas encore
-      }
+        }
         const error = await response.text();
         throw new Error(`Shopify API error: ${error}`);
-    }
+      }
 
       const result = await response.json() as any;
       if (result.metafields && result.metafields.length > 0) {
         try {
           return JSON.parse(result.metafields[0].value);
-      } catch (e) {
+        } catch (e) {
           return result.metafields[0].value;
+        }
       }
-    }
       
       return null;
-  } catch (error) {
+    } catch (error) {
       throw createError(`Failed to get product metafield: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
+    }
   }
 
   /**
@@ -200,7 +200,7 @@ export class ShopifyService {
       const token = await this.getToken(shop);
       if (!token) {
         throw createError('Shop not authenticated', 401);
-    }
+      }
 
       // Vérifier si le metafield existe déjà
       const existingSettings = await this.getProductAdlignSettings(shop, productId);
@@ -212,14 +212,14 @@ export class ShopifyService {
       if (existingSettings) {
         // Mettre à jour le metafield existant
         const metafieldId = await this.getMetafieldId(shop, productId, 'adlign_data', 'settings');
-        url = `https://${shop}/admin/api/2024-01/metafields.json`;
+        url = `https://${shop}/admin/api/2024-01/metafields/${metafieldId}.json`;
         method = 'PUT';
         payload = {
           metafield: {
             value: JSON.stringify(settings)
-        }
-      };
-    } else {
+          }
+        };
+      } else {
         // Créer un nouveau metafield
         url = `https://${shop}/admin/api/2024-01/metafields.json`;
         method = 'POST';
@@ -231,29 +231,29 @@ export class ShopifyService {
             type: 'json_string',
             owner_resource: 'product',
             owner_id: productId
-        }
-      };
-    }
+          }
+        };
+      }
 
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
-      },
+        },
         body: JSON.stringify(payload),
-    });
+      });
 
       if (!response.ok) {
         const error = await response.text();
         throw new Error(`Shopify API error: ${error}`);
-    }
+      }
 
       const result = await response.json() as any;
       return result.metafield;
-  } catch (error) {
+    } catch (error) {
       throw createError(`Failed to update product metafield: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
+    }
   }
 
   /**
@@ -284,11 +284,11 @@ export class ShopifyService {
         variant_handle: variantHandle,
         metafield: result,
         message: `Variante ${variantHandle} ajoutée au produit ${productId}`
-    };
-  } catch (error) {
+      };
+    } catch (error) {
       console.error(`❌ [SHOPIFY] Erreur ajout variante ${variantHandle}:`, error);
       throw createError(`Failed to add Adlign variant: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
+    }
   }
 
   /**
@@ -299,30 +299,30 @@ export class ShopifyService {
       const token = await this.getToken(shop);
       if (!token) {
         throw createError('Shop not authenticated', 401);
-    }
-      
+      }
+
       const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json?namespace=${namespace}&key=${key}`;
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'X-Shopify-Access-Token': token.access_token,
-      },
-    });
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Shopify API error: ${response.statusText}`);
-    }
+      }
 
       const result = await response.json() as any;
       if (result.metafields && result.metafields.length > 0) {
         return result.metafields[0].id;
-    }
+      }
       
       throw new Error('Metafield not found');
-  } catch (error) {
+    } catch (error) {
       throw createError(`Failed to get metafield ID: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
+    }
   }
 
   /**
@@ -338,41 +338,40 @@ export class ShopifyService {
       const token = await this.getToken(shop);
       if (!token) {
         throw createError('Shop not authenticated', 401);
-    }
+      }
 
       const url = `https://${shop}/admin/api/2024-01/metafields.json`;
       const payload = {
         metafield: {
-          namespace: 'adlign_data',
+          namespace: 'adlign',
           key: handle || 'variant',
           value: JSON.stringify(fields),
           type: 'json_string'
-      }
-    };
+        }
+      };
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
-      },
+        },
         body: JSON.stringify(payload),
-    });
+      });
 
       if (!response.ok) {
         const error = await response.text();
         throw new Error(`Shopify API error: ${error}`);
-    }
+      }
 
       const result = await response.json() as any;
       return {
         id: result.metafield.id,
-        handle: result.metafield.handle || '',
-        value: result.metafield.value,
+        handle: result.metafield.key,
         type: result.metafield.type,
         fields
       };
-  } catch (error) {
+    } catch (error) {
       throw createError(`Failed to create/update metaobject: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
@@ -444,7 +443,7 @@ export class ShopifyService {
       access_token: token.access_token,
       scope: token.scope || '',
       shop: shop,
-      expires_in: undefined // ShopToken n'a pas cette propriété
+      expires_in: token.expires_in
     };
   }
 
