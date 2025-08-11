@@ -1,0 +1,21 @@
+name: deploy-extension
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: 
+          node-version: 20
+      - run: npm ci
+      - name: Install Shopify CLI
+        run: npm i -g @shopify/cli @shopify/app
+      - name: Deploy Theme App Extension
+        working-directory: apps/shopify-extension
+        env:
+          SHOPIFY_FLAG_STORE: your-store.myshopify.com
+          SHOPIFY_CLI_AUTH_TOKEN: ${{ secrets.SHOPIFY_API_SECRET }}
+        run: shopify app deploy extension
