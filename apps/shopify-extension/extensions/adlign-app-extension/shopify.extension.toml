@@ -1,0 +1,3 @@
+name = "adlign_injector"
+type = "theme_app_extension"
+handle = "adlign-injector"

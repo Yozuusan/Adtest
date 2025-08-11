@@ -1,0 +1,44 @@
+{
+  "bf-2025": {
+    "title": "🔥 OFFRE BLACK FRIDAY - Jean Levis 501 Classic",
+    "subtitle": "Offre limitée - Livraison gratuite",
+    "description_html": "<p><strong>Profitez de notre offre Black Friday exceptionnelle !</strong></p><p>Le Jean Levis 501 Classic, un incontournable de la mode masculine, maintenant disponible avec une remise exclusive.</p><ul><li>✅ Qualité premium garantie</li><li>🚚 Livraison gratuite en France</li><li>↩️ Retour sous 30 jours</li><li>💳 Paiement en 4x sans frais</li></ul>",
+    "hero_image": "https://example.com/jean-bf-2025.jpg",
+    "usp_list": [
+      "🔥 -50% aujourd'hui",
+      "🚚 Livraison gratuite",
+      "↩️ Retour 30 jours",
+      "💳 Paiement 4x sans frais"
+    ],
+    "cta_primary": "🔥 -50% - Acheter maintenant !",
+    "cta_secondary": "Voir les détails",
+    "badges": [
+      "BLACK FRIDAY",
+      "LIMITÉ",
+      "EXCLUSIF"
+    ],
+    "campaign_ref": "BF-2025-LEVIS",
+    "theme_fingerprint": "dawn-theme-v1"
+  },
+  "summer-2025": {
+    "title": "☀️ COLLECTION ÉTÉ 2025 - Jean Levis 501 Classic",
+    "subtitle": "Nouveautés exclusives",
+    "description_html": "<p><strong>Découvrez notre collection été 2025 !</strong></p><p>Le Jean Levis 501 Classic revisité pour l'été avec des coupes et des couleurs inédites.</p><ul><li>🎨 Couleurs exclusives été</li><li>✂️ Coupes modernisées</li><li>🌿 Matériaux durables</li><li>🚀 Précommande disponible</li></ul>",
+    "hero_image": "https://example.com/jean-summer-2025.jpg",
+    "usp_list": [
+      "☀️ Collection exclusive",
+      "🎨 Couleurs inédites",
+      "✂️ Coupes modernisées",
+      "🌿 Matériaux durables"
+    ],
+    "cta_primary": "☀️ Découvrir la collection",
+    "cta_secondary": "Précommander",
+    "badges": [
+      "NOUVEAUTÉ",
+      "EXCLUSIF",
+      "ÉTÉ 2025"
+    ],
+    "campaign_ref": "SUMMER-2025-LEVIS",
+    "theme_fingerprint": "dawn-theme-v1"
+  }
+}

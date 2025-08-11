@@ -1,0 +1,98 @@
+{% comment %}
+  Adlign Injector Snippet
+  Ce snippet injecte dynamiquement le contenu Adlign selon le paramètre ?adlign_variant= de l'URL
+  Il lit les données depuis le metafield adlign_data.settings (pas de données hardcodées)
+{% endcomment %}
+
+{% comment %} Détecter le paramètre ?adlign_variant= dans l'URL {% endcomment %}
+{% assign adlign_variant = request.query_string | split: 'adlign_variant=' | last | split: '&' | first %}
+
+{% if adlign_variant and adlign_variant != '' %}
+  {% comment %} Variante Adlign détectée - injecter le contenu {% endcomment %}
+  
+  {% comment %} Récupérer les données depuis le metafield adlign_data.settings {% endcomment %}
+  {% assign adlign_settings = product.metafields.adlign_data.settings %}
+  
+  {% if adlign_settings %}
+    {% comment %} Lire la variante demandée depuis le metafield {% endcomment %}
+    {% assign variant_data = adlign_settings[adlign_variant] %}
+    
+    {% if variant_data %}
+      {% comment %} Injecter les données de la variante depuis le metafield {% endcomment %}
+      <script id="adlign-data" type="application/json">
+        {
+          "adlign_variant": {{ adlign_variant | json }},
+          "shop": {{ shop.permanent_domain | json }},
+          "product_id": {{ product.id | json }},
+          "variant_data": {
+            "title": {{ variant_data.title | json }},
+            "subtitle": {{ variant_data.subtitle | json }},
+            "description_html": {{ variant_data.description_html | json }},
+            "hero_image": {{ variant_data.hero_image | json }},
+            "usp_list": {{ variant_data.usp_list | json }},
+            "cta_primary": {{ variant_data.cta_primary | json }},
+            "cta_secondary": {{ variant_data.cta_secondary | json }},
+            "badges": {{ variant_data.badges | json }},
+            "campaign_ref": {{ variant_data.campaign_ref | json }},
+            "theme_fingerprint": {{ variant_data.theme_fingerprint | json }}
+          },
+          "backend_url": "{{ 'https://adlign-dev.loca.lt' | escape }}"
+        }
+      </script>
+      
+      {% comment %} Charger le micro-kernel Adlign {% endcomment %}
+      <script src="{{ 'adlign-micro-kernel.js' | asset_url }}" defer></script>
+      
+      {% comment %} Initialiser Adlign {% endcomment %}
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof window.Adlign !== 'undefined') {
+            window.Adlign.init();
+          }
+        });
+      </script>
+      
+      {% comment %} Debug: afficher les données injectées {% endcomment %}
+      {% if request.design_mode %}
+        <div style="background: #f0f8ff; border: 1px solid #007cba; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>🔧 Mode Design - Variante Adlign détectée:</strong><br>
+          Variant: {{ adlign_variant }}<br>
+          Titre: {{ variant_data.title }}<br>
+          CTA: {{ variant_data.cta_primary }}<br>
+          <small>✅ Données lues depuis le metafield adlign_data.settings</small>
+        </div>
+      {% endif %}
+      
+    {% else %}
+      {% comment %} Variante non trouvée dans le metafield {% endcomment %}
+      {% if request.design_mode %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>⚠️ Mode Design - Variante non trouvée:</strong><br>
+          Variant: {{ adlign_variant }}<br>
+          <small>❌ Cette variante n'existe pas dans le metafield adlign_data.settings</small><br>
+          <small>💡 Créez-la via l'API backend ou ajoutez-la manuellement</small>
+        </div>
+      {% endif %}
+    {% endif %}
+    
+  {% else %}
+    {% comment %} Metafield adlign_data.settings non trouvé {% endcomment %}
+    {% if request.design_mode %}
+      <div style="background: #f8d7da; border: 1px solid #dc3545; padding: 10px; margin: 10px 0; border-radius: 4px;">
+        <strong>❌ Mode Design - Metafield adlign_data.settings non trouvé:</strong><br>
+        <small>❌ Ce produit n'a pas de metafield adlign_data.settings</small><br>
+        <small>💡 Créez d'abord ce metafield sur le produit via l'API backend</small>
+      </div>
+    {% endif %}
+  {% endif %}
+  
+{% else %}
+  {% comment %} Pas de variante Adlign - ne rien faire (page normale) {% endcomment %}
+  {% if request.design_mode %}
+    <div style="background: #d1ecf1; border: 1px solid #17a2b8; padding: 10px; margin: 10px 0; border-radius: 4px;">
+      <strong>ℹ️ Mode Design - Page normale (sans variante Adlign):</strong><br>
+      <small>Ajoutez ?adlign_variant=nom-variant à l'URL pour tester une variante</small><br>
+      <small>💡 Exemple: ?adlign_variant=test</small>
+    </div>
+  {% endif %}
+{% endif %}

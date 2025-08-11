@@ -17,6 +17,7 @@ import analyticsRoutes from './routes/analytics';
 import mappingRoutes from './routes/mapping';
 import snippetRoutes from './routes/snippet';
 import debugRoutes from './routes/debug';
+import adlignVariantsRoutes from './routes/adlign-variants';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/analytics', analyticsRoutes);
 app.use('/mapping', mappingRoutes);
 app.use('/snippet', snippetRoutes);
 app.use('/debug', debugRoutes);
+app.use('/adlign-variants', adlignVariantsRoutes);
 
 // DEBUG: Lister toutes les routes enregistrées
 console.log('🔍 Routes enregistrées:');
@@ -59,7 +61,8 @@ app.get('/health', (req, res) => {
       variants: 'active',
       analytics: 'active',
       mapping: 'active',
-      snippet: 'active'
+      snippet: 'active',
+      adlign_variants: 'active'
     }
   });
 });
@@ -96,6 +99,11 @@ app.get('/', (req, res) => {
       },
       snippet: {
         generate: 'GET /snippet?av=variant-handle&shop=your-store.myshopify.com'
+      },
+      adlign_variants: {
+        create: 'POST /adlign-variants',
+        get: 'GET /adlign-variants/:product_id?shop=your-store.myshopify.com',
+        delete: 'DELETE /adlign-variants/:product_id/:variant_handle?shop=your-store.myshopify.com'
       }
     },
     documentation: 'Voir les routes individuelles pour plus de détails'
