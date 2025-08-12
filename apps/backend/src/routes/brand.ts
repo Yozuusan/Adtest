@@ -356,7 +356,7 @@ async function getShopProducts(shop: string): Promise<any[]> {
     // Utiliser getShopToken pour récupérer les produits
     const token = await getShopToken(shop);
     if (!token) {
-      throw new Error('Shop not authenticated');
+      throw createError('Shop not authenticated', 401);
     }
 
     const apiUrl = `https://${shop}/admin/api/2024-01/products.json?limit=50&fields=id,title,handle,product_type,vendor,tags,body_html,images`;
@@ -376,6 +376,9 @@ async function getShopProducts(shop: string): Promise<any[]> {
     return data.products || [];
   } catch (error) {
     console.error('❌ Error fetching shop products:', error);
+    if (error instanceof Error && error.message === 'Shop not authenticated') {
+      throw createError('Shop not authenticated', 401);
+    }
     throw error;
   }
 }
