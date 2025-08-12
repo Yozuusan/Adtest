@@ -13,7 +13,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Installer toutes les dépendances (production + dev pour le build) avec optimisations
-RUN npm install --no-optional --no-audit --no-fund
+RUN npm install --no-optional --no-audit --no-fund --legacy-peer-deps
 
 # Copier le code source
 COPY src/ ./src/
@@ -38,7 +38,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer seulement les dépendances de production avec optimisations
-RUN npm install --only=production --no-optional --no-audit --no-fund && npm cache clean --force
+RUN npm install --only=production --no-optional --no-audit --no-fund --legacy-peer-deps && npm cache clean --force
 
 # Copier les fichiers buildés depuis le stage builder
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
