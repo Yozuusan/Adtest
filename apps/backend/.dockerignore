@@ -14,3 +14,11 @@ dist
 build
 .vscode
 .idea
+*.md
+tests
+test
+__tests__
+coverage
+.nyc_output
+.cache
+.npm
