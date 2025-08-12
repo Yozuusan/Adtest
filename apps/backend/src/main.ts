@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { initSentry, sentryRequestHandler, sentryErrorHandler } from './monitoring/sentry';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { validateEnvironment } from './utils/env-validation';
@@ -12,12 +13,12 @@ try {
   console.log('  PORT:', env.PORT);
   console.log('  SUPABASE_URL:', env.SUPABASE_URL ? '✅ défini' : '❌ undefined');
   console.log('  SHOPIFY_API_KEY:', env.SHOPIFY_API_KEY ? '✅ défini' : '❌ undefined');
-} catch (error) {
-  console.error('❌ Erreur de validation des variables d\'environnement:', error.message);
+} catch (error: any) {
+  console.error('❌ Erreur de validation des variables d\'environnement:', error?.message || String(error));
   process.exit(1);
 }
 
-// Import des routes
+// Routes
 import oauthRoutes from './routes/oauth';
 import variantsRoutes from './routes/variants';
 import analyticsRoutes from './routes/analytics';
@@ -25,6 +26,9 @@ import mappingRoutes from './routes/mapping';
 import snippetRoutes from './routes/snippet';
 import debugRoutes from './routes/debug';
 import adlignVariantsRoutes from './routes/adlign-variants';
+import productsRoutes from './routes/products';
+import aiVariantsRoutes from './routes/ai-variants';
+import brandRoutes from './routes/brand';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,9 +36,10 @@ const PORT = process.env.PORT || 3001;
 // Initialiser Sentry
 initSentry();
 
-// Middlewares de base
+// Middleware
 app.use(express.json());
 app.use(cors());
+app.use(helmet());
 
 // Handler Sentry pour capturer les requêtes
 app.use(sentryRequestHandler());
@@ -47,6 +52,9 @@ app.use('/mapping', mappingRoutes);
 app.use('/snippet', snippetRoutes);
 app.use('/debug', debugRoutes);
 app.use('/adlign-variants', adlignVariantsRoutes);
+app.use('/products', productsRoutes);
+app.use('/ai-variants', aiVariantsRoutes);
+app.use('/brand', brandRoutes);
 
 // DEBUG: Lister toutes les routes enregistrées
 console.log('🔍 Routes enregistrées:');
@@ -69,7 +77,10 @@ app.get('/health', (req, res) => {
       analytics: 'active',
       mapping: 'active',
       snippet: 'active',
-      adlign_variants: 'active'
+      adlign_variants: 'active',
+      products: 'active',
+      ai_variants: 'active',
+      brand: 'active'
     }
   });
 });
@@ -111,6 +122,19 @@ app.get('/', (req, res) => {
         create: 'POST /adlign-variants',
         get: 'GET /adlign-variants/:product_id?shop=your-store.myshopify.com',
         delete: 'DELETE /adlign-variants/:product_id/:variant_handle?shop=your-store.myshopify.com'
+      },
+      products: {
+        list: 'GET /products?shop=your-store.myshopify.com&search=term&limit=20',
+        details: 'GET /products/:product_id?shop=your-store.myshopify.com'
+      },
+      ai_variants: {
+        generate: 'POST /ai-variants/generate (FormData: creative_file, product_data, campaign_context, tone_of_voice, variant_handle)'
+      },
+      brand: {
+        analyze: 'GET /brand/analyze?shop=your-store.myshopify.com',
+        upload_doc: 'POST /brand/upload-doc (FormData: brand_document, shop, document_type)',
+        save_info: 'POST /brand/save-info (JSON: shop, brand_info)',
+        summary: 'GET /brand/summary?shop=your-store.myshopify.com'
       }
     },
     documentation: 'Voir les routes individuelles pour plus de détails'

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createError } from '../middleware/errorHandler';
 import { analyticsService } from '../services/analytics';
-import { AnalyticsEvent } from '@adlign/types';
+import { AnalyticsEvent } from '../types';
 
 const router = Router();
 
@@ -31,16 +31,16 @@ router.post('/', async (req, res, next) => {
     // Créer l'événement analytics
     const analyticsEvent: AnalyticsEvent = {
       id: `evt_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-      event_type: event_type as 'variant_view' | 'variant_click' | 'variant_conversion',
-      variant_id: variant_handle || 'unknown',
+      event_type: event_type as 'variant_view' | 'cta_click' | 'conversion' | 'page_view',
+      shop: shop || 'unknown',
+      variant_handle: variant_handle || 'unknown',
       product_gid: product_gid || 'unknown',
       campaign_ref: 'unknown', // À remplacer par la vraie valeur
-      user_agent: user_agent || req.get('User-Agent') || undefined,
+      user_agent: user_agent || req.get('User-Agent') || 'unknown',
       timestamp: timestamp || new Date().toISOString(),
+      created_at: new Date().toISOString(),
       metadata: {
-        shop,
-        variant_handle: variant_handle || null,
-        created_at: new Date().toISOString()
+        ip: req.ip || 'unknown'
       }
     };
 

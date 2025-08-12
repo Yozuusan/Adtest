@@ -62,15 +62,40 @@ router.get('/callback', async (req, res, next) => {
     
     console.log(`✅ OAuth successful for ${shop}. Scopes: ${token.scope}`);
 
-    // Rediriger vers une page de succès ou l'admin Shopify
-    const successUrl = `https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+    // 🔧 FIX: Détecter l'environnement et rediriger correctement
+    let frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL;
+    
+    // Si pas de FRONTEND_URL configurée, détecter depuis les headers
+    if (!frontendUrl) {
+      const referer = req.get('Referer');
+      if (referer && referer.includes('lovable.app')) {
+        // Extraire l'URL Lovable du referer
+        const lovableMatch = referer.match(/(https:\/\/[^\/]+\.lovable\.app)/);
+        frontendUrl = lovableMatch ? lovableMatch[1] : 'http://localhost:3000';
+      } else {
+        frontendUrl = 'http://localhost:3000';
+      }
+    }
+    
+    console.log(`🎯 Redirecting to frontend: ${frontendUrl}`);
+    
+    // Rediriger vers la page de succès avec les params
+    const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token.access_token}`;
     
     res.redirect(successUrl);
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
     
+    // Détecter l'URL frontend pour l'erreur aussi
+    let frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
+    const referer = req.get('Referer');
+    if (referer && referer.includes('lovable.app')) {
+      const lovableMatch = referer.match(/(https:\/\/[^\/]+\.lovable\.app)/);
+      frontendUrl = lovableMatch ? lovableMatch[1] : frontendUrl;
+    }
+    
     // Rediriger vers une page d'erreur
-    const errorUrl = `${process.env.APP_URL}/oauth/error?message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`;
+    const errorUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`;
     res.redirect(errorUrl);
   }
 });

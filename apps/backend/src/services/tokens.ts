@@ -25,9 +25,9 @@ export async function saveShopToken(shopRaw: string, token: ShopToken, ttlDays =
     const value = { ...token, installedAt: token.installedAt ?? Date.now() };
     await redis.set(KEY(shop), value, { ex: ttlDays * 86400 });
 
-    // Sauvegarder dans Supabase (persistance)
+    // Sauvegarder dans Supabase (persistence)
     await supabaseService.upsertShop({
-      domain: shop,
+      shop_domain: shop, // Changé de 'domain' à 'shop_domain'
       access_token: token.access_token,
       scope: token.scope,
       is_active: true

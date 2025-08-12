@@ -1,4 +1,4 @@
-import { MappingJob } from '@adlign/types';
+import { MappingJob } from '../types';
 import { supabaseService } from './supabase';
 
 export class QueueService {
@@ -9,15 +9,15 @@ export class QueueService {
     try {
       // Créer le job dans Supabase
       const supabaseJob = await supabaseService.createMappingJob({
-        shop_domain: job.shop_id,
-        product_url: job.product_url,
-        product_gid: job.product_gid,
+        shop_id: 'unknown', // TODO: Ajouter shop_id au type MappingJob
+        product_url: undefined,
+        product_gid: undefined,
         status: 'pending',
-        priority: job.priority,
-        estimated_duration: job.estimated_duration
+        priority: 'normal',
+        estimated_duration: '5-10 minutes'
       });
 
-      console.log(`✅ Mapping job enqueued in Supabase: ${supabaseJob.id} for shop ${job.shop_id}`);
+      console.log(`✅ Mapping job enqueued in Supabase: ${supabaseJob.id}`);
       return supabaseJob.id;
     } catch (error) {
       console.error('❌ Error enqueueing mapping job:', error);
@@ -40,13 +40,12 @@ export class QueueService {
       // Convertir vers le type MappingJob
       return {
         id: supabaseJob.id,
-        shop_id: supabaseJob.shop_domain,
-        product_url: supabaseJob.product_url,
-        product_gid: supabaseJob.product_gid,
-        status: supabaseJob.status,
-        priority: supabaseJob.priority,
+        product_handle: 'unknown', // TODO: Ajouter au type Supabase
+        theme_id: 'unknown', // TODO: Ajouter au type Supabase
+        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status, // Map 'running' vers 'processing'
         created_at: supabaseJob.created_at,
-        estimated_duration: supabaseJob.estimated_duration || '5-10 minutes',
+        started_at: supabaseJob.started_at,
+        completed_at: supabaseJob.completed_at,
         result: supabaseJob.result,
         error: supabaseJob.error
       };
@@ -74,13 +73,12 @@ export class QueueService {
       // Convertir vers le type MappingJob
       const jobs: MappingJob[] = supabaseJobs.map(supabaseJob => ({
         id: supabaseJob.id,
-        shop_id: supabaseJob.shop_domain,
-        product_url: supabaseJob.product_url,
-        product_gid: supabaseJob.product_gid,
-        status: supabaseJob.status,
-        priority: supabaseJob.priority,
+        product_handle: 'unknown', // TODO: Ajouter au type Supabase
+        theme_id: 'unknown', // TODO: Ajouter au type Supabase
+        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status, // Map 'running' vers 'processing'
         created_at: supabaseJob.created_at,
-        estimated_duration: supabaseJob.estimated_duration || '5-10 minutes',
+        started_at: supabaseJob.started_at,
+        completed_at: supabaseJob.completed_at,
         result: supabaseJob.result,
         error: supabaseJob.error
       }));

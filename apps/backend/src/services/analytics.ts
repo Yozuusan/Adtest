@@ -1,4 +1,4 @@
-import { AnalyticsEvent } from '@adlign/types';
+import { AnalyticsEvent } from '../types';
 import { supabaseService } from './supabase';
 
 export class AnalyticsService {
@@ -9,9 +9,9 @@ export class AnalyticsService {
     try {
       // Convertir le type AnalyticsEvent vers SupabaseAnalyticsEvent
       const supabaseEvent = {
-        shop_domain: event.metadata?.shop || 'unknown',
+        shop: event.metadata?.shop || 'unknown', // Changé de shop_domain à shop
         event_type: event.event_type,
-        variant_handle: event.variant_id,
+        variant_handle: event.variant_handle,
         product_gid: event.product_gid,
         campaign_ref: event.campaign_ref,
         user_agent: event.user_agent,
@@ -20,7 +20,7 @@ export class AnalyticsService {
       };
 
       await supabaseService.saveAnalyticsEvent(supabaseEvent);
-      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${supabaseEvent.shop_domain}`);
+      console.log(`✅ Analytics event saved: ${event.event_type} for shop ${supabaseEvent.shop}`);
     } catch (error) {
       console.error('❌ Analytics service error:', error);
       throw error;

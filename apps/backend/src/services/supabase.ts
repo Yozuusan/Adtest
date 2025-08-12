@@ -8,7 +8,7 @@ import { getEnvVar } from '../utils/env-validation';
 // Types pour les tables Supabase
 export interface SupabaseShop {
   id: string;
-  domain: string;
+  shop_domain: string; // Changé de 'domain' à 'shop_domain'
   access_token: string;
   scope?: string;
   shop_owner?: string;
@@ -24,7 +24,7 @@ export interface SupabaseShop {
 
 export interface SupabaseAnalyticsEvent {
   id: string;
-  shop_domain: string;
+  shop: string; // Changé de 'shop_domain' à 'shop'
   event_type: string;
   variant_handle?: string;
   product_gid?: string;
@@ -38,10 +38,10 @@ export interface SupabaseAnalyticsEvent {
 
 export interface SupabaseMappingJob {
   id: string;
-  shop_domain: string;
+  shop_id: string; // Changé de 'shop_domain' à 'shop_id'
   product_url?: string;
   product_gid?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'running';
   priority: 'low' | 'normal' | 'high';
   estimated_duration?: string;
   result?: any;
@@ -54,23 +54,23 @@ export interface SupabaseMappingJob {
 
 export interface SupabaseThemeAdapter {
   id: string;
-  shop_domain: string;
+  shop_id: string; // Changé de 'shop_domain' à 'shop_id'
   theme_id?: string;
   theme_name?: string;
   theme_fingerprint: string;
-  adapter_data: any;
-  confidence_score: number;
-  is_active: boolean;
+  selectors: any; // Changé de 'adapter_data' à 'selectors'
+  confidence: any; // Changé de 'confidence_score' à 'confidence'
   created_at: string;
   updated_at: string;
 }
 
 export interface SupabaseAdlignVariant {
   id: string;
-  shop_domain: string;
+  shop: string; // Changé de 'shop_domain' à 'shop'
   product_gid: string;
   variant_handle: string;
-  variant_data: any;
+  content_json: any; // Changé de 'variant_data' à 'content_json'
+  campaign_ref?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -103,56 +103,74 @@ export class SupabaseService {
    * Créer ou mettre à jour une boutique
    */
   async upsertShop(shopData: Omit<SupabaseShop, 'id' | 'created_at' | 'updated_at'>): Promise<SupabaseShop> {
-    const { data, error } = await this.client
-      .from('shops')
-      .upsert(shopData, { onConflict: 'domain' })
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('shops')
+        .upsert({
+          shop_domain: shopData.shop_domain,
+          access_token: shopData.access_token,
+          scope: shopData.scope,
+          shop_owner: shopData.shop_owner,
+          email: shopData.email,
+          country_code: shopData.country_code,
+          currency: shopData.currency,
+          timezone: shopData.timezone,
+          expires_at: shopData.expires_at,
+          is_active: shopData.is_active
+        }, {
+          onConflict: 'shop_domain'
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+      return data;
+    } catch (error) {
       console.error('❌ Error upserting shop:', error);
-      throw new Error(`Failed to upsert shop: ${error.message}`);
+      throw error;
     }
-
-    return data;
   }
 
   /**
    * Récupérer une boutique par son domaine
    */
   async getShopByDomain(domain: string): Promise<SupabaseShop | null> {
-    const { data, error } = await this.client
-      .from('shops')
-      .select('*')
-      .eq('domain', domain)
-      .eq('is_active', true)
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('shops')
+        .select('*')
+        .eq('shop_domain', domain)
+        .eq('is_active', true)
+        .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('❌ Error getting shop:', error);
-      throw new Error(`Failed to get shop: ${error.message}`);
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    } catch (error) {
+      console.error('❌ Error getting shop by domain:', error);
+      return null;
     }
-
-    return data;
   }
 
   /**
    * Mettre à jour le token d'une boutique
    */
   async updateShopToken(domain: string, accessToken: string, scope?: string, expiresAt?: string): Promise<void> {
-    const { error } = await this.client
-      .from('shops')
-      .update({
-        access_token: accessToken,
-        scope,
-        expires_at: expiresAt,
-        updated_at: new Date().toISOString()
-      })
-      .eq('domain', domain);
+    try {
+      const { error } = await this.client
+        .from('shops')
+        .update({
+          access_token: accessToken,
+          scope,
+          expires_at: expiresAt,
+          updated_at: new Date().toISOString()
+        })
+        .eq('shop_domain', domain);
 
-    if (error) {
+      if (error) throw error;
+      console.log(`✅ Shop token updated for ${domain}`);
+    } catch (error) {
       console.error('❌ Error updating shop token:', error);
-      throw new Error(`Failed to update shop token: ${error.message}`);
+      throw error;
     }
   }
 
@@ -164,36 +182,49 @@ export class SupabaseService {
    * Sauvegarder un événement analytics
    */
   async saveAnalyticsEvent(event: Omit<SupabaseAnalyticsEvent, 'id' | 'created_at'>): Promise<SupabaseAnalyticsEvent> {
-    const { data, error } = await this.client
-      .from('analytics_events')
-      .insert(event)
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('analytics_events')
+        .insert({
+          shop: event.shop,
+          event_type: event.event_type,
+          variant_handle: event.variant_handle,
+          product_gid: event.product_gid,
+          campaign_ref: event.campaign_ref,
+          user_agent: event.user_agent,
+          ip_address: event.ip_address,
+          timestamp: event.timestamp,
+          metadata: event.metadata
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+      return data;
+    } catch (error) {
       console.error('❌ Error saving analytics event:', error);
-      throw new Error(`Failed to save analytics event: ${error.message}`);
+      throw new Error(`Failed to save analytics event: ${error}`);
     }
-
-    return data;
   }
 
   /**
-   * Récupérer les statistiques d'une boutique
+   * Récupérer les statistiques analytics d'une boutique
    */
-  async getAnalyticsStats(shopDomain: string, startDate: string): Promise<any> {
-    const { data, error } = await this.client
-      .from('analytics_events')
-      .select('*')
-      .eq('shop_domain', shopDomain)
-      .gte('timestamp', startDate);
+  async getAnalyticsStats(shopDomain: string, startDate: string): Promise<any[]> {
+    try {
+      const { data, error } = await this.client
+        .from('analytics_events')
+        .select('*')
+        .eq('shop', shopDomain)
+        .gte('timestamp', startDate)
+        .order('timestamp', { ascending: false });
 
-    if (error) {
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
       console.error('❌ Error getting analytics stats:', error);
-      throw new Error(`Failed to get analytics stats: ${error.message}`);
+      return [];
     }
-
-    return data;
   }
 
   // ========================================
@@ -204,18 +235,28 @@ export class SupabaseService {
    * Créer un job de mapping
    */
   async createMappingJob(job: Omit<SupabaseMappingJob, 'id' | 'created_at' | 'updated_at'>): Promise<SupabaseMappingJob> {
-    const { data, error } = await this.client
-      .from('mapping_jobs')
-      .insert(job)
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('mapping_jobs')
+        .insert({
+          shop_id: job.shop_id,
+          product_url: job.product_url,
+          product_gid: job.product_gid,
+          status: job.status,
+          priority: job.priority,
+          estimated_duration: job.estimated_duration,
+          result: job.result,
+          error: job.error
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+      return data;
+    } catch (error) {
       console.error('❌ Error creating mapping job:', error);
-      throw new Error(`Failed to create mapping job: ${error.message}`);
+      throw new Error(`Failed to create mapping job: ${error}`);
     }
-
-    return data;
   }
 
   /**
@@ -266,34 +307,36 @@ export class SupabaseService {
   }
 
   /**
-   * Récupérer les jobs d'une boutique
+   * Récupérer les jobs de mapping d'une boutique
    */
   async getShopMappingJobs(shopDomain: string, status?: string, limit: number = 50, offset: number = 0): Promise<{
     jobs: SupabaseMappingJob[];
     total: number;
   }> {
-    let query = this.client
-      .from('mapping_jobs')
-      .select('*', { count: 'exact' })
-      .eq('shop_domain', shopDomain);
+    try {
+      let query = this.client
+        .from('mapping_jobs')
+        .select('*', { count: 'exact' })
+        .eq('shop_id', shopDomain);
 
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      return {
+        jobs: data || [],
+        total: count || 0
+      };
+    } catch (error) {
+      console.error('❌ Error getting shop mapping jobs:', error);
+      return { jobs: [], total: 0 };
     }
-
-    const { data, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      console.error('❌ Error getting mapping jobs:', error);
-      throw new Error(`Failed to get mapping jobs: ${error.message}`);
-    }
-
-    return {
-      jobs: data || [],
-      total: count || 0
-    };
   }
 
   // ========================================
@@ -304,94 +347,205 @@ export class SupabaseService {
    * Sauvegarder un adapter de thème
    */
   async saveThemeAdapter(adapter: Omit<SupabaseThemeAdapter, 'id' | 'created_at' | 'updated_at'>): Promise<SupabaseThemeAdapter> {
-    const { data, error } = await this.client
-      .from('theme_adapters')
-      .upsert(adapter, { onConflict: 'theme_fingerprint' })
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('theme_adapters')
+        .upsert({
+          shop_id: adapter.shop_id,
+          theme_id: adapter.theme_id,
+          theme_name: adapter.theme_name,
+          theme_fingerprint: adapter.theme_fingerprint,
+          selectors: adapter.selectors,
+          confidence: adapter.confidence
+        }, {
+          onConflict: 'theme_fingerprint'
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+      return data;
+    } catch (error) {
       console.error('❌ Error saving theme adapter:', error);
-      throw new Error(`Failed to save theme adapter: ${error.message}`);
+      throw new Error(`Failed to save theme adapter: ${error}`);
     }
-
-    return data;
   }
 
   /**
    * Récupérer un adapter de thème par fingerprint
    */
   async getThemeAdapter(fingerprint: string): Promise<SupabaseThemeAdapter | null> {
-    const { data, error } = await this.client
-      .from('theme_adapters')
-      .select('*')
-      .eq('theme_fingerprint', fingerprint)
-      .eq('is_active', true)
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from('theme_adapters')
+        .select('*')
+        .eq('theme_fingerprint', fingerprint)
+        .single();
 
-    if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    } catch (error) {
       console.error('❌ Error getting theme adapter:', error);
-      throw new Error(`Failed to get theme adapter: ${error.message}`);
+      return null;
     }
-
-    return data;
   }
 
   // ========================================
-  // ADLIGN VARIANTS
+  // ADLIGN VARIANTS MANAGEMENT
   // ========================================
 
   /**
    * Sauvegarder une variante Adlign
    */
-  async saveAdlignVariant(variant: Omit<SupabaseAdlignVariant, 'id' | 'created_at' | 'updated_at'>): Promise<SupabaseAdlignVariant> {
-    const { data, error } = await this.client
-      .from('adlign_variants')
-      .upsert(variant, { onConflict: 'shop_domain,product_gid,variant_handle' })
-      .select()
-      .single();
+  async saveAdlignVariant(variant: Omit<SupabaseAdlignVariant, "id" | "created_at" | "updated_at">): Promise<SupabaseAdlignVariant> {
+    try {
+      const { data, error } = await this.client
+        .from('adlign_variants')
+        .insert(variant)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('❌ Error saving Adlign variant:', error);
-      throw new Error(`Failed to save Adlign variant: ${error.message}`);
+      if (error) {
+        console.error('❌ Error saving Adlign variant:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in saveAdlignVariant:', error);
+      throw error;
     }
+  }
 
-    return data;
+  // ========================================
+  // BRAND ANALYSIS MANAGEMENT
+  // ========================================
+
+  /**
+   * Récupérer l'analyse de marque existante
+   */
+  async getBrandAnalysis(shop: string): Promise<any> {
+    try {
+      const { data, error } = await this.client
+        .from('brand_analysis')
+        .select('*')
+        .eq('shop', shop)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('❌ Error fetching brand analysis:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in getBrandAnalysis:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sauvegarder une analyse de marque
+   */
+  async saveBrandAnalysis(analysis: {
+    shop: string;
+    ai_analysis: any;
+    custom_brand_info?: any;
+    analysis_type?: string;
+    confidence_score?: number;
+    products_analyzed: number;
+  }): Promise<any> {
+    try {
+      // Pour l'instant, on insère simplement (pas d'upsert)
+      const { data, error } = await this.client
+        .from('brand_analysis')
+        .insert(analysis)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error saving brand analysis:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in saveBrandAnalysis:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mettre à jour les informations manuelles de marque
+   */
+  async updateCustomBrandInfo(shop: string, customInfo: any): Promise<any> {
+    try {
+      const { data, error } = await this.client
+        .from('brand_analysis')
+        .upsert({
+          shop,
+          custom_brand_info: customInfo,
+          analysis_type: 'hybrid',
+          last_updated: new Date().toISOString()
+        }, { 
+          onConflict: 'shop',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating custom brand info:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in updateCustomBrandInfo:', error);
+      throw error;
+    }
   }
 
   /**
    * Récupérer toutes les variantes d'un produit
    */
   async getProductVariants(shopDomain: string, productGid: string): Promise<SupabaseAdlignVariant[]> {
-    const { data, error } = await this.client
-      .from('adlign_variants')
-      .select('*')
-      .eq('shop_domain', shopDomain)
-      .eq('product_gid', productGid)
-      .eq('is_active', true);
+    try {
+      const { data, error } = await this.client
+        .from('adlign_variants')
+        .select('*')
+        .eq('shop', shopDomain)
+        .eq('product_gid', productGid)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
-    if (error) {
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
       console.error('❌ Error getting product variants:', error);
-      throw new Error(`Failed to get product variants: ${error.message}`);
+      return [];
     }
-
-    return data || [];
   }
 
   /**
    * Supprimer une variante
    */
   async deleteVariant(shopDomain: string, productGid: string, variantHandle: string): Promise<void> {
-    const { error } = await this.client
-      .from('adlign_variants')
-      .delete()
-      .eq('shop_domain', shopDomain)
-      .eq('product_gid', productGid)
-      .eq('variant_handle', variantHandle);
+    try {
+      const { error } = await this.client
+        .from('adlign_variants')
+        .delete()
+        .eq('shop', shopDomain)
+        .eq('product_gid', productGid)
+        .eq('variant_handle', variantHandle);
 
-    if (error) {
+      if (error) throw error;
+      console.log(`✅ Variant deleted: ${variantHandle}`);
+    } catch (error) {
       console.error('❌ Error deleting variant:', error);
-      throw new Error(`Failed to delete variant: ${error.message}`);
+      throw new Error(`Failed to delete variant: ${error}`);
     }
   }
 
