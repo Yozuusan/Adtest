@@ -458,10 +458,13 @@ export class SupabaseService {
     products_analyzed: number;
   }): Promise<any> {
     try {
-      // Pour l'instant, on insère simplement (pas d'upsert)
+      // Utiliser upsert pour éviter les conflits de contrainte unique
       const { data, error } = await this.client
         .from('brand_analysis')
-        .insert(analysis)
+        .upsert(analysis, { 
+          onConflict: 'shop',
+          ignoreDuplicates: false 
+        })
         .select()
         .single();
 
