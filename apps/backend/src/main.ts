@@ -38,7 +38,23 @@ initSentry();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+
+// Configuration CORS pour autoriser Lovable et localhost
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+    /^https:\/\/.*\.lovable\.app$/,
+    /^https:\/\/.*\.lovable\.dev$/,
+    'https://lovable.dev'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Shopify-Access-Token']
+};
+
+app.use(cors(corsOptions));
 app.use(helmet());
 
 // Handler Sentry pour capturer les requêtes
