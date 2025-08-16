@@ -169,6 +169,25 @@ app.get('/micro-kernel.js', (req, res) => {
     },
 
     loadData: async function() {
+      // 1. Essayer de charger depuis le script tag (metafield ou fallback)
+      const dataScript = document.getElementById('adlign-data');
+      if (dataScript) {
+        try {
+          this.data = JSON.parse(dataScript.textContent);
+          console.log('📖 [ADLIGN SaaS] Données lues depuis le script tag:', this.data);
+          
+          // Si c'est un fallback API, charger depuis l'API
+          if (this.data.fallback_to_api && this.data.variant_data === null) {
+            console.log('🔄 [ADLIGN SaaS] Fallback API détecté, chargement depuis Railway...');
+            await this.loadFromAPI();
+          }
+          return;
+        } catch (e) {
+          console.error('❌ [ADLIGN SaaS] Erreur parsing des données:', e);
+        }
+      }
+
+      // 2. Fallback: charger directement depuis l'URL si pas de script tag
       const urlParams = new URLSearchParams(window.location.search);
       const variantHandle = urlParams.get('adlign_variant');
       
@@ -177,15 +196,30 @@ app.get('/micro-kernel.js', (req, res) => {
         return;
       }
 
+      await this.loadFromAPI();
+    },
+
+    loadFromAPI: async function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const variantHandle = urlParams.get('adlign_variant');
+      
+      if (!variantHandle) return;
+
       try {
-        console.log('🔍 [ADLIGN SaaS] Chargement variant:', variantHandle);
+        console.log('🔍 [ADLIGN SaaS] Chargement API pour variant:', variantHandle);
         const shopDomain = window.location.hostname;
         const apiUrl = 'https://adtest-production.up.railway.app/api/variant-data';
         
         const response = await fetch(apiUrl + '?av=' + variantHandle + '&shop=' + shopDomain);
         if (response.ok) {
-          this.data = await response.json();
-          console.log('📖 [ADLIGN SaaS] Données chargées:', this.data);
+          const apiData = await response.json();
+          // Merger les données API avec les données existantes du script tag
+          if (this.data) {
+            this.data.variant_data = apiData.variant_data;
+          } else {
+            this.data = apiData;
+          }
+          console.log('📖 [ADLIGN SaaS] Données API chargées:', this.data);
         } else {
           console.error('❌ [ADLIGN SaaS] Erreur API:', response.status);
         }

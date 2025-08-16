@@ -36,8 +36,12 @@
     appliedPatches: [],
     mutationObserver: null,
 
-    init: function() {
-      this.loadData();
+    init: async function() {
+      await this.loadData();
+      this.continueInit();
+    },
+
+    continueInit: function() {
       if (this.data && this.data.variant_data) {
         this.loadMapping();
         this.applyMetafieldInjection();
@@ -47,24 +51,50 @@
           product_id: this.data.product_id,
           shop: this.data.shop
         });
-        console.log('✅ [ADLIGN METAFIELD] Variante appliquée depuis le metafield');
+        console.log('✅ [ADLIGN] Variante appliquée avec succès');
       } else {
-        console.log('ℹ️ [ADLIGN METAFIELD] Aucune variante trouvée ou données manquantes');
+        console.log('ℹ️ [ADLIGN] Aucune variante trouvée ou données manquantes');
       }
     },
 
-    loadData: function() {
+    loadData: async function() {
+      // 1. Essayer de charger depuis le metafield (production)
       const dataScript = document.getElementById('adlign-data');
       if (dataScript) {
         try {
           this.data = JSON.parse(dataScript.textContent);
           console.log('📖 [ADLIGN METAFIELD] Données lues depuis le metafield:', this.data);
+          return;
         } catch (e) {
           console.error('❌ [ADLIGN METAFIELD] Erreur parsing des données:', e);
         }
-      } else {
-        console.warn('⚠️ [ADLIGN METAFIELD] Script adlign-data non trouvé');
       }
+
+      // 2. Essayer de charger depuis l'URL (développement/démo)
+      const urlParams = new URLSearchParams(window.location.search);
+      const variantHandle = urlParams.get('adlign_variant');
+      
+      if (variantHandle) {
+        console.log('🔍 [ADLIGN API] Paramètre variant détecté:', variantHandle);
+        try {
+          const shopDomain = window.location.hostname;
+          // Utiliser un endpoint JSON au lieu de HTML
+          const apiUrl = `http://localhost:3001/api/variant-data?av=${variantHandle}&shop=${shopDomain}`;
+          
+          const response = await fetch(apiUrl);
+          if (response.ok) {
+            this.data = await response.json();
+            console.log('📖 [ADLIGN API] Données chargées depuis l\'API:', this.data);
+            return;
+          } else {
+            console.error('❌ [ADLIGN API] Erreur réponse API:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ [ADLIGN API] Erreur chargement API:', error);
+        }
+      }
+
+      console.warn('⚠️ [ADLIGN] Aucune source de données trouvée');
     },
 
     loadMapping: function() {
