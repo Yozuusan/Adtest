@@ -1,0 +1,9 @@
+/* Custom styles for Adlign landing page */
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
