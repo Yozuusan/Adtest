@@ -12,7 +12,7 @@ const extractContentFromCreative = async (file: File): Promise<string> => {
   formData.append('shop', 'adlign.myshopify.com');
 
   // Use environment variable for API URL, fallback to localhost for development
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
   
   const response = await fetch(`${apiUrl}/ai-variants/analyze-creative`, {
     method: 'POST',

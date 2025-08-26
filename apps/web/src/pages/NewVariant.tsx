@@ -76,7 +76,7 @@ export function NewVariant() {
       ? selectedProduct.product_url.split('.myshopify.com')[0].split('://')[1]
       : 'adlign';
     
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
     const backendSnippetUrl = `${apiUrl}/snippet?av=${variantHandle}&shop=${shopName}.myshopify.com`;
     const shopifyVariantUrl = `${selectedProduct.product_url}?adlign_variant=${variantHandle}`;
     
