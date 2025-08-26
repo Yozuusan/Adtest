@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "fbf15d2b2aac8efe1fdedece9227de32"
-application_url = "https://adlign-dev.loca.lt"
+application_url = "https://adtest-production.up.railway.app"
 embedded = true
 name = "Adlign"
 handle = "adlign"
@@ -19,7 +19,7 @@ api_version = "2024-01"
 scopes = "read_files,read_metaobjects,read_product_listings,read_products,read_themes,write_files,write_metaobjects,write_products,write_themes"
 
 [auth]
-redirect_urls = [ "https://adlign-dev.loca.lt/oauth/callback" ]
+redirect_urls = [ "https://adtest-production.up.railway.app/oauth/callback" ]
 
 [pos]
 embedded = false
