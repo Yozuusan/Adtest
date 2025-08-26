@@ -102,7 +102,7 @@ export class ShopifyService {
   /**
    * Génère l'URL d'installation OAuth
    */
-  generateInstallUrl(shop: string, scopes: string[] = ['read_products', 'write_products', 'read_metafields', 'write_metafields']): string {
+  generateInstallUrl(shop: string, scopes: string[] = ['read_files', 'read_metaobjects', 'read_product_listings', 'read_products', 'read_themes', 'write_files', 'write_metaobjects', 'write_products', 'write_themes']): string {
     const scope = scopes.join(',');
     const redirectUri = `${this.appUrl}/oauth/callback`;
     
