@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Target, 
   Scan, 
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
-interface MappedElement {
+interface _MappedElement {
   id: string;
   selector: string;
   element_type: 'title' | 'subtitle' | 'description' | 'image' | 'cta' | 'price' | 'badge';
@@ -135,14 +135,14 @@ export function ThemeMapping() {
   const handleStartScan = async () => {
     setIsScanning(true);
     // Simulate scan process
-    setMappingData(prev => ({ ...prev, scan_status: 'scanning', scan_progress: 0 }));
+    setMappingData(prev => ({ ...prev, scan_status: 'scanning' as const, scan_progress: 0 }));
     
     for (let i = 0; i <= 100; i += 10) {
       await new Promise(resolve => setTimeout(resolve, 200));
       setMappingData(prev => ({ ...prev, scan_progress: i }));
     }
     
-    setMappingData(prev => ({ ...prev, scan_status: 'completed' }));
+    setMappingData(prev => ({ ...prev, scan_status: 'completed' as const }));
     setIsScanning(false);
   };
 

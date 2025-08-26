@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
-  Plus, 
   Palette,
   Target
 } from 'lucide-react';

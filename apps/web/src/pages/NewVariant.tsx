@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ProductSelector } from '@/components/variant/ProductSelector';
 import { CreativeUploader } from '@/components/variant/CreativeUploader';
 import { AdditionalContext } from '@/components/variant/AdditionalContext';
