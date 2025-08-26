@@ -68,10 +68,10 @@ router.get('/callback', async (req, res, next) => {
     // Si pas de FRONTEND_URL configurée, détecter depuis les headers
     if (!frontendUrl) {
       const referer = req.get('Referer');
-      if (referer && referer.includes('lovable.app')) {
-        // Extraire l'URL Lovable du referer
-        const lovableMatch = referer.match(/(https:\/\/[^\/]+\.lovable\.app)/);
-        frontendUrl = lovableMatch ? lovableMatch[1] : 'http://localhost:3000';
+      if (referer && referer.includes('vercel.app')) {
+        // Extraire l'URL Vercel du referer
+        const vercelMatch = referer.match(/(https:\/\/[^\/]+\.vercel\.app)/);
+        frontendUrl = vercelMatch ? vercelMatch[1] : 'http://localhost:3000';
       } else {
         frontendUrl = 'http://localhost:3000';
       }
@@ -89,9 +89,9 @@ router.get('/callback', async (req, res, next) => {
     // Détecter l'URL frontend pour l'erreur aussi
     let frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
     const referer = req.get('Referer');
-    if (referer && referer.includes('lovable.app')) {
-      const lovableMatch = referer.match(/(https:\/\/[^\/]+\.lovable\.app)/);
-      frontendUrl = lovableMatch ? lovableMatch[1] : frontendUrl;
+    if (referer && referer.includes('vercel.app')) {
+      const vercelMatch = referer.match(/(https:\/\/[^\/]+\.vercel\.app)/);
+      frontendUrl = vercelMatch ? vercelMatch[1] : frontendUrl;
     }
     
     // Rediriger vers une page d'erreur

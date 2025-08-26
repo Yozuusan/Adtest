@@ -39,15 +39,15 @@ initSentry();
 // Middleware
 app.use(express.json());
 
-// Configuration CORS pour autoriser Lovable et localhost
+// Configuration CORS pour autoriser Vercel et localhost
 const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8080',
-    /^https:\/\/.*\.lovable\.app$/,
-    /^https:\/\/.*\.lovable\.dev$/,
-    'https://lovable.dev'
+    /^https:\/\/.*\.vercel\.app$/,
+    'https://adlign-app.vercel.app',
+    'https://adlign.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
