@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = "Adlign"
-client_id = "81dae9ca895642d2c6441720d1a0e609"
+client_id = "fbf15d2b2aac8efe1fdedece9227de32"
 application_url = "https://adlign-dev.loca.lt"
 embedded = true
 
