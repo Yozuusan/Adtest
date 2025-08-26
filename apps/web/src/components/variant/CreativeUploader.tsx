@@ -5,6 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Creative } from '@/types';
 
+// AI Content Extraction Function
+const extractContentFromCreative = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('creative_file', file);
+  formData.append('shop', 'adlign.myshopify.com');
+
+  // Use environment variable for API URL, fallback to localhost for development
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  
+  const response = await fetch(`${apiUrl}/ai-variants/analyze-creative`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Content extraction failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.extracted_text || 'Contenu analysé avec succès';
+};
+
 interface CreativeUploaderProps {
   selectedCreative: Creative | null;
   onCreativeSelect: (creative: Creative | null) => void;
@@ -24,26 +46,30 @@ export function CreativeUploader({ selectedCreative, onCreativeSelect }: Creativ
       };
       onCreativeSelect(creative);
       
-      // Fast text extraction simulation (500ms for better UX)
-      setTimeout(() => {
-        // For demo: analyze filename and simulate realistic extraction
-        let mockExtractedText = "Contenu détecté automatiquement...";
-        
-        if (file.name.toLowerCase().includes('creative') || file.name.toLowerCase().includes('savon')) {
-          mockExtractedText = "SAVON ANTI DÉMANGEAISON - Produit naturel apaisant - Soulage les irritations cutanées";
-        } else if (file.type.startsWith('image/')) {
-          // Generic fallback for other images
-          mockExtractedText = "Contenu publicitaire détecté - Analyse en cours pour extraction du texte et des éléments visuels";
-        } else {
-          mockExtractedText = "Document analysé - Contenu promotionnel détecté";
-        }
+      // Real AI content extraction
+      extractContentFromCreative(file)
+        .then((extractedText) => {
+          const updatedCreative: Creative = {
+            ...creative,
+            extracted_text: extractedText
+          };
+          onCreativeSelect(updatedCreative);
+        })
+        .catch((error) => {
+          console.error('Content extraction failed:', error);
+          // Fallback to mock data
+          let mockExtractedText = "Contenu publicitaire détecté - Analyse manuelle recommandée";
           
-        const updatedCreative: Creative = {
-          ...creative,
-          extracted_text: mockExtractedText
-        };
-        onCreativeSelect(updatedCreative);
-      }, 500); // Reduced from 2000ms to 500ms
+          if (file.name.toLowerCase().includes('creative') || file.name.toLowerCase().includes('savon')) {
+            mockExtractedText = "SAVON ANTI DÉMANGEAISON - Produit naturel apaisant - Soulage les irritations cutanées";
+          }
+          
+          const updatedCreative: Creative = {
+            ...creative,
+            extracted_text: mockExtractedText
+          };
+          onCreativeSelect(updatedCreative);
+        });
     }
   }, [onCreativeSelect]);
 

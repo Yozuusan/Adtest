@@ -261,4 +261,45 @@ Focus on:
   }
 }
 
+/**
+ * NOUVEAU: Endpoint pour analyser seulement la creative (étape 1)
+ * POST /ai-variants/analyze-creative
+ */
+router.post('/analyze-creative', upload.single('creative_file'), async (req, res, next) => {
+  try {
+    const { shop } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      throw createError('Creative file is required', 400);
+    }
+
+    if (!shop || typeof shop !== 'string') {
+      throw createError('Shop parameter is required', 400);
+    }
+
+    console.log(`🎨 Analyzing creative for shop: ${shop}`);
+    console.log(`📁 File: ${file.originalname} (${file.size} bytes)`);
+
+    // Analyser la créative avec OpenAI Vision
+    const extractedText = await analyzeCreativeImage(file);
+
+    console.log(`✅ Creative analysis completed: ${extractedText.substring(0, 100)}...`);
+
+    res.json({
+      success: true,
+      extracted_text: extractedText,
+      file_info: {
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Creative analysis error:', error);
+    next(error);
+  }
+});
+
 export default router;

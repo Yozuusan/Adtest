@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProductSelector } from '@/components/variant/ProductSelector';
@@ -15,6 +16,7 @@ const STEPS = [
 ];
 
 export function NewVariant() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
@@ -74,14 +76,25 @@ export function NewVariant() {
       ? selectedProduct.product_url.split('.myshopify.com')[0].split('://')[1]
       : 'adlign';
     
-    const backendSnippetUrl = `http://localhost:3001/snippet?av=${variantHandle}&shop=${shopName}.myshopify.com`;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const backendSnippetUrl = `${apiUrl}/snippet?av=${variantHandle}&shop=${shopName}.myshopify.com`;
     const shopifyVariantUrl = `${selectedProduct.product_url}?adlign_variant=${variantHandle}`;
     
-    // Show success message with links
-    alert(`Variant créée avec succès!\n\nShopify URL: ${shopifyVariantUrl}\nDémo Backend: ${backendSnippetUrl}`);
+    // Store variant data for the preview page
+    const variantData = {
+      handle: variantHandle,
+      product: selectedProduct,
+      creative: selectedCreative,
+      formData,
+      shopifyUrl: shopifyVariantUrl,
+      backendUrl: backendSnippetUrl,
+    };
     
-    // Open the real Shopify variant URL (avec injection via micro-kernel)
-    window.open(shopifyVariantUrl, '_blank');
+    // Save to localStorage for the preview page
+    localStorage.setItem('currentVariant', JSON.stringify(variantData));
+    
+    // Navigate to the preview/review page instead of popup
+    navigate(`/variants/preview/${variantHandle}`);
   };
 
   const isComplete = selectedProduct && selectedCreative; // Campaign context is now optional
