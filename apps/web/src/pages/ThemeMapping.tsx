@@ -15,21 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
-interface _MappedElement {
-  id: string;
-  selector: string;
-  element_type: 'title' | 'subtitle' | 'description' | 'image' | 'cta' | 'price' | 'badge';
-  confidence_score: number;
-  current_content: string;
-  position: { x: number; y: number };
-  suggested_mapping: boolean;
-  is_verified: boolean;
-}
 
 const mockMappingData = {
   shop_url: 'https://adlign.myshopify.com',
   product_url: 'https://adlign.myshopify.com/products/echantillon-savon-a-barres-de-noix-de-coco',
-  scan_status: 'completed' as const,
+  scan_status: 'completed' as 'completed' | 'scanning',
   scan_progress: 100,
   total_elements: 12,
   mapped_elements: 9,
@@ -135,14 +125,14 @@ export function ThemeMapping() {
   const handleStartScan = async () => {
     setIsScanning(true);
     // Simulate scan process
-    setMappingData(prev => ({ ...prev, scan_status: 'scanning' as const, scan_progress: 0 }));
+    setMappingData(prev => ({ ...prev, scan_status: 'scanning' as 'completed' | 'scanning', scan_progress: 0 }));
     
     for (let i = 0; i <= 100; i += 10) {
       await new Promise(resolve => setTimeout(resolve, 200));
       setMappingData(prev => ({ ...prev, scan_progress: i }));
     }
     
-    setMappingData(prev => ({ ...prev, scan_status: 'completed' as const }));
+    setMappingData(prev => ({ ...prev, scan_status: 'completed' as 'completed' | 'scanning' }));
     setIsScanning(false);
   };
 
