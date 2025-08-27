@@ -1,8 +1,38 @@
 import { Router } from 'express';
 import { createError } from '../middleware/errorHandler';
 import { shopifyService } from '../services/shopify';
+import { cacheService } from '../services/cache';
+import { supabaseService } from '../services/supabase';
 
 const router = Router();
+
+/**
+ * Récupère un adapter de thème depuis Redis avec fallback Supabase
+ */
+export async function loadThemeAdapter(shop: string, fingerprint: string) {
+  // Première tentative : cache Redis
+  let adapter = await cacheService.getThemeAdapter(shop, fingerprint);
+
+  // Fallback sur Supabase si l'adapter n'est pas en cache
+  if (!adapter) {
+    const dbAdapter = await supabaseService.getThemeAdapter(fingerprint);
+    if (dbAdapter) {
+      adapter = dbAdapter as any;
+      // On tente de mettre en cache pour les futures requêtes mais on ignore les erreurs
+      try {
+        await cacheService.saveThemeAdapter(shop, fingerprint, adapter as any);
+      } catch (err) {
+        console.warn('⚠️ Failed to cache theme adapter:', err);
+      }
+    }
+  }
+
+  if (!adapter) {
+    throw createError('Theme adapter not found', 404);
+  }
+
+  return adapter;
+}
 
 /**
  * Générer le snippet JSON pour l'extension (SSR)
@@ -46,6 +76,11 @@ router.get('/', async (req, res, next) => {
       };
     }
 
+    const fingerprint = 'theme_123'; // TODO: utiliser la véritable empreinte du thème
+
+    // Récupération de l'adaptateur depuis Redis/Supabase
+    const themeAdapter = await loadThemeAdapter(shop, fingerprint);
+
     const variantPayload = {
       id: `var_${av}`,
       adlign_variant: av,
@@ -53,31 +88,8 @@ router.get('/', async (req, res, next) => {
       product_id: "sample_product",
       backend_url: process.env.BACKEND_URL || "https://your-backend.railway.app",
       variant_data: variantContent,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    // TODO: Récupérer le theme adapter depuis Redis/Supabase
-    // Pour l'instant, on génère des données factices
-    const themeAdapter = {
-      id: `adapter_${shop}_${Date.now()}`,
-      shop,
-      theme_fingerprint: 'theme_123',
-      selectors: {
-        title: '.product-title, h1.product-title, .product__title',
-        description: '.product-description, .product__description, .product-details',
-        price: '.product-price, .price, .product__price',
-        add_to_cart: '.add-to-cart, .product-form__submit, button[type="submit"]',
-        images: '.product-images img, .product__media img, .product-gallery img'
-      },
-      strategies: {
-        title: 'text',
-        description: 'html',
-        price: 'text',
-        add_to_cart: 'element',
-        images: 'image_src'
-      },
-      confidence: 0.85,
+      theme_fingerprint: fingerprint,
+      theme_adapter: themeAdapter,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
