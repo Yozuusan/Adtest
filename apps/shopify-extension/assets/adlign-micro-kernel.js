@@ -62,12 +62,40 @@
   
   // Apply variant changes to DOM
   function applyVariant(variantData) {
-    // TODO: Implement variant application logic
-    // - Parse ThemeAdapter selectors
-    // - Apply text, image, and other changes
-    // - Handle fallbacks for missing elements
-    
-    log('Applying variant:', variantData);
+    if (!variantData) return;
+
+    const adapter = variantData.theme_adapter || {};
+    const selectors = adapter.selectors || {};
+    const content = variantData.variant_data || {};
+
+    const mapping = {
+      title: 'title',
+      description_html: 'description',
+      cta_primary: 'add_to_cart',
+      promotional_badge: 'promotional_badge'
+    };
+
+    Object.entries(mapping).forEach(([contentKey, selectorKey]) => {
+      const selector = selectors[selectorKey];
+      const value = content[contentKey];
+      if (!selector || !value) return;
+
+      const el = document.querySelector(selector);
+      if (el) {
+        if (contentKey === 'description_html') {
+          el.innerHTML = value;
+        } else {
+          el.textContent = value;
+        }
+      } else if (CONFIG.FALLBACK_ENABLED) {
+        log('Selector not found:', selector);
+      }
+    });
+  }
+
+  // Expose for tests
+  if (typeof window !== 'undefined') {
+    window.__adlign_applyVariant = applyVariant;
   }
   
   // Initialize when DOM is ready
