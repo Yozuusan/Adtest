@@ -456,6 +456,186 @@ export class ShopifyService {
   }
 
   /**
+   * Récupérer un variant par handle
+   */
+  async getVariantByHandle(shop: string, handle: string): Promise<any> {
+    const token = await getShopToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const query = `
+      query getMetaobject($handle: String!) {
+        metaobject(handle: {handle: $handle, type: "adlign_variant"}) {
+          id
+          handle
+          fields {
+            key
+            value
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query, variables: { handle } }),
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return null;
+      }
+
+      const metaobject = result.data?.metaobject;
+      if (!metaobject) return null;
+
+      // Convertir les fields en objet
+      const fieldsObj: any = {};
+      metaobject.fields.forEach((field: any) => {
+        fieldsObj[field.key] = field.value;
+      });
+
+      return {
+        id: metaobject.id,
+        handle: metaobject.handle,
+        ...fieldsObj
+      };
+    } catch (error) {
+      console.error('Error fetching variant:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Récupérer tous les variants d'un shop
+   */
+  async getAllVariants(shop: string): Promise<any[]> {
+    const token = await getShopToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const query = `
+      query getMetaobjects {
+        metaobjects(type: "adlign_variant", first: 250) {
+          edges {
+            node {
+              id
+              handle
+              fields {
+                key
+                value
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return [];
+      }
+
+      const metaobjects = result.data?.metaobjects?.edges || [];
+      
+      return metaobjects.map((edge: any) => {
+        const metaobject = edge.node;
+        const fieldsObj: any = {};
+        metaobject.fields.forEach((field: any) => {
+          fieldsObj[field.key] = field.value;
+        });
+
+        return {
+          id: metaobject.id,
+          handle: metaobject.handle,
+          ...fieldsObj
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching variants:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Supprimer un variant par handle
+   */
+  async deleteVariantByHandle(shop: string, handle: string): Promise<boolean> {
+    const variant = await this.getVariantByHandle(shop, handle);
+    if (!variant) return false;
+
+    const token = await getShopToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const mutation = `
+      mutation metaobjectDelete($id: ID!) {
+        metaobjectDelete(id: $id) {
+          deletedId
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query: mutation, 
+          variables: { id: variant.id }
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return false;
+      }
+
+      const deleteResult = result.data?.metaobjectDelete;
+      if (deleteResult?.userErrors?.length > 0) {
+        console.error('Delete errors:', deleteResult.userErrors);
+        return false;
+      }
+
+      return !!deleteResult?.deletedId;
+    } catch (error) {
+      console.error('Error deleting variant:', error);
+      return false;
+    }
+  }
+
+  /**
    * Génère un state sécurisé pour OAuth
    */
   private generateState(shop: string): string {

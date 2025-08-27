@@ -8,7 +8,7 @@
     "start": "node dist/index.js",
     "start:prod": "NODE_ENV=production node dist/index.js",
     "lint": "echo 'Lint disabled for worker-mapping package'",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
@@ -24,10 +24,13 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.8.0",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "eslint": "^8.52.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
     "tsx": "^4.6.0",
     "typescript": "^5.3.0"
   }

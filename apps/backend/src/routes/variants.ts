@@ -75,14 +75,21 @@ router.get('/:handle', async (req, res, next) => {
       throw createError('Shop not authenticated', 401);
     }
 
-    // TODO: Implémenter la récupération du variant depuis Shopify
-    // Pour l'instant, on renvoie une structure de base
+    // Récupérer le variant metaobject depuis Shopify
+    const variant = await shopifyService.getVariantByHandle(shop, handle);
+    
+    if (!variant) {
+      throw createError(`Variant '${handle}' not found for shop ${shop}`, 404);
+    }
+
     res.json({
       success: true,
       data: {
-        handle,
+        handle: variant.handle,
         shop,
-        content: null, // À implémenter
+        content: variant.content_json ? JSON.parse(variant.content_json) : null,
+        product_gid: variant.product_gid,
+        created_at: variant.created_at,
         retrieved_at: new Date().toISOString()
       }
     });
@@ -109,13 +116,20 @@ router.get('/', async (req, res, next) => {
       throw createError('Shop not authenticated', 401);
     }
 
-    // TODO: Implémenter la liste des variants depuis Shopify
+    // Récupérer tous les variants metaobjects depuis Shopify
+    const variants = await shopifyService.getAllVariants(shop);
+
     res.json({
       success: true,
       data: {
         shop,
-        variants: [], // À implémenter
-        count: 0,
+        variants: variants.map(variant => ({
+          handle: variant.handle,
+          product_gid: variant.product_gid,
+          content: variant.content_json ? JSON.parse(variant.content_json) : null,
+          created_at: variant.created_at
+        })),
+        count: variants.length,
         retrieved_at: new Date().toISOString()
       }
     });
@@ -193,12 +207,18 @@ router.delete('/:handle', async (req, res, next) => {
       throw createError('Shop not authenticated', 401);
     }
 
-    // TODO: Implémenter la suppression du metaobject depuis Shopify
-    console.log(`🗑️ Variant deletion requested for shop ${shop}: ${handle}`);
+    // Supprimer le variant metaobject depuis Shopify
+    const deleted = await shopifyService.deleteVariantByHandle(shop, handle);
+    
+    if (!deleted) {
+      throw createError(`Variant '${handle}' not found for shop ${shop}`, 404);
+    }
+
+    console.log(`🗑️ Variant deleted for shop ${shop}: ${handle}`);
 
     res.json({
       success: true,
-      message: 'Variant deletion requested',
+      message: 'Variant deleted successfully',
       data: {
         handle,
         shop,
