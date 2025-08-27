@@ -487,7 +487,7 @@ export class ShopifyService {
         body: JSON.stringify({ query, variables: { handle } }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as any;
       
       if (result.errors) {
         console.error('GraphQL errors:', result.errors);
@@ -550,7 +550,7 @@ export class ShopifyService {
         body: JSON.stringify({ query }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as any;
       
       if (result.errors) {
         console.error('GraphQL errors:', result.errors);
@@ -615,7 +615,7 @@ export class ShopifyService {
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as any;
       
       if (result.errors) {
         console.error('GraphQL errors:', result.errors);

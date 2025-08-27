@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "dotenv -e ../../.env -- node dist/main.js",
     "lint": "echo 'Lint disabled for backend package'",
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
