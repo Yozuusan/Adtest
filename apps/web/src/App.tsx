@@ -7,6 +7,8 @@ import { VariantPreview } from '@/pages/VariantPreview';
 import { ThemeMapping } from '@/pages/ThemeMapping';
 import { Analytics } from '@/pages/Analytics';
 import { Brand } from '@/pages/Brand';
+import { ConnectStore } from '@/pages/ConnectStore';
+import { AuthCallback } from '@/pages/AuthCallback';
 
 function App() {
   return (
@@ -19,7 +21,9 @@ function App() {
         <Route path="variants/mapping" element={<ThemeMapping />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="brand" element={<Brand />} />
+        <Route path="connect-store" element={<ConnectStore />} />
       </Route>
+      <Route path="auth/callback" element={<AuthCallback />} />
     </Routes>
   );
 }
