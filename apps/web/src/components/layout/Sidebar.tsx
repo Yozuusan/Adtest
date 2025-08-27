@@ -1,7 +1,9 @@
-import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  BarChart3, 
+import { useEffect, useState } from 'react';
+import { NavLink, Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+  LayoutDashboard,
+  BarChart3,
   Palette,
   Target
 } from 'lucide-react';
@@ -31,6 +33,25 @@ const navigation = [
 ];
 
 export function Sidebar() {
+  const [shopDomain, setShopDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    setShopDomain(localStorage.getItem('shopDomain'));
+  }, []);
+
+  const disconnect = () => {
+    localStorage.removeItem('shopDomain');
+    setShopDomain(null);
+  };
+
+  const today = new Date();
+  const dateLabel = `${today.getDate().toString().padStart(2, '0')} ${(
+    today.getMonth() + 1
+  )
+    .toString()
+    .padStart(2, '0')}`;
+  const versionLabel = `(${dateLabel} V1)`;
+
   return (
     <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
       {/* Logo */}
@@ -39,7 +60,7 @@ export function Sidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
             <Target className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-bold text-gray-900">Adlign</span>
+          <span className="text-xl font-bold text-gray-900">Adlign {versionLabel}</span>
         </div>
       </div>
 
@@ -72,13 +93,21 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-gray-300" />
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-700">Demo User</p>
-            <p className="text-xs text-gray-500">adlign.myshopify.com</p>
+        {shopDomain ? (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-700">{shopDomain}</div>
+            <button
+              onClick={disconnect}
+              className="text-xs text-red-600 hover:underline"
+            >
+              Disconnect
+            </button>
           </div>
-        </div>
+        ) : (
+          <Button asChild className="w-full" size="sm">
+            <Link to="/connect-store">Connect Store</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
