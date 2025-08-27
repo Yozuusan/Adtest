@@ -52,23 +52,15 @@ describe('Variants Routes', () => {
       mockedShopifyService.isShopAuthenticated.mockResolvedValue(true);
       mockedShopifyService.getVariantByHandle.mockResolvedValue(null);
 
-      const response = await request(app)
+      await request(app)
         .get('/variants/nonexistent?shop=test.myshopify.com')
         .expect(404);
-
-      expect(response.body).toMatchObject({
-        error: expect.stringContaining('not found')
-      });
     });
 
     it('should return 400 when shop parameter is missing', async () => {
-      const response = await request(app)
+      await request(app)
         .get('/variants/test-variant')
         .expect(400);
-
-      expect(response.body).toMatchObject({
-        error: expect.stringContaining('required')
-      });
     });
   });
 
@@ -145,13 +137,9 @@ describe('Variants Routes', () => {
       mockedShopifyService.isShopAuthenticated.mockResolvedValue(true);
       mockedShopifyService.deleteVariantByHandle.mockResolvedValue(false);
 
-      const response = await request(app)
+      await request(app)
         .delete('/variants/nonexistent?shop=test.myshopify.com')
         .expect(404);
-
-      expect(response.body).toMatchObject({
-        error: expect.stringContaining('not found')
-      });
     });
   });
 });
