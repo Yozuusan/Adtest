@@ -39,7 +39,7 @@ initSentry();
 // Middleware
 app.use(express.json());
 
-// Configuration CORS pour autoriser Vercel et localhost
+// Configuration CORS pour autoriser Vercel, localhost et Shopify
 const corsOptions = {
   origin: [
     'http://localhost:3000',
@@ -47,7 +47,10 @@ const corsOptions = {
     'http://localhost:8080',
     /^https:\/\/.*\.vercel\.app$/,
     'https://adlign-app.vercel.app',
-    'https://adlign.vercel.app'
+    'https://adlign.vercel.app',
+    /^https:\/\/.*\.myshopify\.com$/,
+    'https://admin.shopify.com',
+    /^https:\/\/.*\.shopify\.com$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -55,7 +58,17 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(helmet());
+
+// Configuration Helmet pour autoriser l'iframe Shopify
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "frame-ancestors": ["'self'", "https://*.shopify.com", "https://*.myshopify.com"]
+    }
+  },
+  frameguard: false // Désactiver X-Frame-Options pour permettre l'iframe
+}));
 
 // Handler Sentry pour capturer les requêtes
 app.use(sentryRequestHandler());
