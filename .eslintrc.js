@@ -35,14 +35,29 @@ module.exports = {
     },
     {
       // Configuration spécifique pour les fichiers TypeScript
-      files: ['**/*.ts'],
-      extends: ['eslint:recommended'],
+      files: ['**/*.ts', '**/*.tsx'],
+      parser: '@typescript-eslint/parser',
+      plugins: ['@typescript-eslint'],
+      extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
+        ecmaFeatures: { jsx: true },
       },
       rules: {
         'no-unused-vars': 'off', // TypeScript gère ça
+        indent: 'off', // Conflit avec @typescript-eslint
+        quotes: 'off',
+        semi: 'off',
+        'no-console': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+      },
+    },
+    {
+      // Configuration pour les fichiers de tests (Jest)
+      files: ['**/__tests__/**/*.js', '**/*.test.js'],
+      env: {
+        jest: true,
       },
     },
     {
