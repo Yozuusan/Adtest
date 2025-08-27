@@ -1,8 +1,20 @@
 import { Router } from 'express';
 import { createError } from '../middleware/errorHandler';
 import { shopifyService } from '../services/shopify';
+import { Redis } from '@upstash/redis';
+import { createClient } from '@supabase/supabase-js';
 
 const router = Router();
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+});
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * Récupérer le ThemeAdapter depuis la base de données/cache
@@ -42,30 +54,31 @@ async function getThemeAdapterForShop(shop: string): Promise<any> {
   }
 }
 
-/**
- * Récupérer depuis le cache Redis (implémentation future)
- */
+/** Récupérer depuis le cache Redis */
 async function getCachedThemeAdapter(shop: string): Promise<any> {
-  // TODO: Implémenter avec Redis/Upstash
-  // const redis = new Redis(process.env.UPSTASH_REDIS_REST_URL);
-  // const cached = await redis.get(`theme_adapter:${shop}`);
-  // return cached ? JSON.parse(cached) : null;
-  return null;
+  try {
+    const cached = await redis.get(`theme_adapter:${shop}`);
+    return cached || null;
+  } catch (error) {
+    console.error('❌ Error reading theme adapter from cache:', error);
+    return null;
+  }
 }
 
-/**
- * Récupérer depuis Supabase
- */
+/** Récupérer depuis Supabase */
 async function getThemeAdapterFromDatabase(shop: string): Promise<any> {
-  // TODO: Implémenter avec Supabase client
-  // const { data } = await supabase
-  //   .from('theme_adapters')
-  //   .select('*')
-  //   .eq('shop', shop)
-  //   .order('created_at', { ascending: false })
-  //   .limit(1);
-  // return data?.[0] || null;
-  return null;
+  try {
+    const { data } = await supabase
+      .from('theme_adapters')
+      .select('*')
+      .eq('shop', shop)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    return data?.[0] || null;
+  } catch (error) {
+    console.error('❌ Error reading theme adapter from database:', error);
+    return null;
+  }
 }
 
 /**
@@ -134,16 +147,22 @@ async function generateSmartAdapter(shop: string): Promise<any> {
  * Sauvegarder en base de données (implémentation future)
  */
 async function saveThemeAdapterToDatabase(shop: string, adapter: any): Promise<void> {
-  // TODO: Implémenter avec Supabase
-  console.log(`💾 Would save theme adapter for ${shop} to database`);
+  try {
+    await supabase.from('theme_adapters').insert([{ shop, ...adapter }]);
+  } catch (error) {
+    console.error('❌ Error saving theme adapter to database:', error);
+  }
 }
 
 /**
  * Mettre en cache (implémentation future)
  */
 async function cacheThemeAdapter(shop: string, adapter: any): Promise<void> {
-  // TODO: Implémenter avec Redis
-  console.log(`🏪 Would cache theme adapter for ${shop}`);
+  try {
+    await redis.set(`theme_adapter:${shop}`, adapter);
+  } catch (error) {
+    console.error('❌ Error caching theme adapter:', error);
+  }
 }
 
 /**
@@ -252,151 +271,59 @@ router.get('/', async (req, res, next) => {
       updated_at: new Date().toISOString()
     };
 
-    // Ajouter le theme adapter au payload pour le micro-kernel
-    const finalPayload = {
-      ...variantPayload,
-      theme_adapter: themeAdapter
-    };
-
-    // Définir le type de contenu comme HTML pour l'injection inline
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    // Générer le HTML avec le JSON inline et le micro-kernel
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Adlign Variant - ${av}</title>
-    <script id="adlign-data" type="application/json">
-${JSON.stringify(finalPayload, null, 2)}
-    </script>
-</head>
-<body>
-    <div id="adlign-snippet" style="padding: 20px; background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; margin: 20px; font-family: sans-serif;">
-        <h2 style="color: #0ea5e9; margin-top: 0;">🎯 Adlign Variant Chargée</h2>
-        <p><strong>Variant:</strong> ${av}</p>
-        <p><strong>Shop:</strong> ${shop}</p>
-        <p><strong>Générée à:</strong> ${new Date().toISOString()}</p>
-        <div style="background: #fff; padding: 15px; border-radius: 6px; margin-top: 15px;">
-          <h3 style="margin-top: 0; color: #374151;">Contenu du variant :</h3>
-          <p><strong>Titre:</strong> ${variantContent.title}</p>
-          <p><strong>CTA:</strong> ${variantContent.cta_primary}</p>
-          <p><strong>Badge:</strong> ${variantContent.promotional_badge}</p>
-        </div>
-        <div style="background: #fff; padding: 15px; border-radius: 6px; margin-top: 10px;">
-          <h3 style="margin-top: 0; color: #374151;">Theme Adapter :</h3>
-          <p><strong>Source:</strong> ${themeAdapter.source || 'default'}</p>
-          <p><strong>Confidence:</strong> ${Math.round((themeAdapter.confidence || 0) * 100)}%</p>
-          <p><strong>Sélecteurs:</strong> ${Object.keys(themeAdapter.selectors || {}).length} éléments mappés</p>
-        </div>
-        <div id="adlign-status" style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px;">
-          <p style="margin: 0; font-size: 14px;">⏳ Chargement du micro-kernel...</p>
-        </div>
-    </div>
-    
-    <script>
-        console.log('🚀 [ADLIGN SNIPPET] Variant chargée:', '${av}');
-        console.log('📊 [ADLIGN SNIPPET] Données disponibles:', JSON.parse(document.getElementById('adlign-data').textContent));
-        
-        // Simuler le chargement du micro-kernel après 1 seconde
-        setTimeout(() => {
-          const statusDiv = document.getElementById('adlign-status');
-          if (statusDiv) {
-            statusDiv.innerHTML = '<p style="margin: 0; font-size: 14px; color: #059669;">✅ Micro-kernel chargé - Injection en cours...</p>';
-            statusDiv.style.background = '#d1fae5';
-          }
-        }, 1000);
-    </script>
-    
-    <!-- Chargement du micro-kernel -->
-    <script src="https://your-cdn.com/adlign-micro-kernel.js"></script>
-</body>
-</html>`;
-
-    res.send(html);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Endpoint JSON pour le micro-kernel
- * GET /api/variant-data?av=variant-handle&shop=your-store.myshopify.com
- */
-router.get('/api/variant-data', async (req, res, next) => {
-  try {
-    const { av, shop } = req.query;
-    
-    if (!av || !shop) {
-      throw createError('Missing required parameters: av (variant handle) and shop', 400);
-    }
-
-    if (typeof av !== 'string' || typeof shop !== 'string') {
-      throw createError('Invalid parameter types', 400);
-    }
-
-    console.log(`📊 Generating JSON data for variant ${av} on shop ${shop}`);
-
-    // Générer des données de variant réalistes selon le handle
-    let variantContent;
-    if (av.includes('savon') || av.includes('anti-demangeaison')) {
-      variantContent = {
-        title: "🌿 SAVON ANTI-DÉMANGEAISON - Soulagement Naturel",
-        description_html: "<strong>Nouveau !</strong> Savon naturel spécialement formulé pour apaiser les démangeaisons et irritations cutanées. <br><br>✨ <strong>Bénéfices :</strong><br>• Soulage instantanément les démangeaisons<br>• Ingrédients 100% naturels<br>• Convient aux peaux sensibles<br>• Action apaisante longue durée",
-        cta_primary: "🛒 Soulager mes démangeaisons",
-        promotional_badge: "🌿 NOUVEAU - Action Apaisante",
+      const finalPayload = {
+        ...variantPayload,
+        theme_adapter: themeAdapter
       };
-    } else {
-      variantContent = {
-        title: `🔥 Variant ${av} - Offre Spéciale`,
-        description_html: `<strong>Découvrez notre variant ${av}</strong><br>Produit optimisé pour une expérience client exceptionnelle.`,
-        cta_primary: "🛒 Découvrir maintenant",
-        promotional_badge: "✨ OFFRE SPÉCIALE",
-      };
+
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        res.json(finalPayload);
+      }
+    } catch (error) {
+      next(error);
     }
-
-    const variantPayload = {
-      id: `var_${av}`,
-      adlign_variant: av,
-      shop,
-      product_id: "sample_product",
-      backend_url: process.env.BACKEND_URL || "http://localhost:3001",
-      variant_data: variantContent,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    // Headers CORS pour le micro-kernel
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    res.json(variantPayload);
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 /**
  * Vérifier la santé du service de snippet
  * GET /snippet/health
  */
-router.get('/health', (req, res) => {
+router.get('/health', async (req, res) => {
+  const redisOk = await redis.ping().then(() => true).catch(() => false);
+  let supabaseOk = true;
+  try {
+    await supabase.from('theme_adapters').select('id').limit(1);
+  } catch {
+    supabaseOk = false;
+  }
+
   res.json({
     service: 'snippet-generator',
-    status: 'healthy',
+    status: redisOk && supabaseOk ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     features: {
-      variant_loading: 'mock', // TODO: implémenter
-      theme_adapter_loading: 'mock', // TODO: implémenter
-      signature_generation: 'mock', // TODO: implémenter
+      variant_loading: 'active',
+      theme_adapter_loading: redisOk && supabaseOk ? 'active' : 'fallback',
+      signature_generation: 'inactive',
       html_generation: 'active'
+    },
+    dependencies: {
+      redis: redisOk ? 'ok' : 'error',
+      supabase: supabaseOk ? 'ok' : 'error'
     }
   });
 });
 
 export default router;
+
+export {
+  getThemeAdapterForShop,
+  getCachedThemeAdapter,
+  getThemeAdapterFromDatabase,
+  saveThemeAdapterToDatabase,
+  cacheThemeAdapter,
+  generateSmartAdapter
+};
