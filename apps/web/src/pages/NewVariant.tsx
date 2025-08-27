@@ -5,14 +5,19 @@ import { Button } from '@/components/ui/button';
 import { ProductSelector } from '@/components/variant/ProductSelector';
 import { CreativeUploader } from '@/components/variant/CreativeUploader';
 import { AdditionalContext } from '@/components/variant/AdditionalContext';
+import { VariantReview } from '@/components/variant/VariantReview';
 import { VariantPreview } from '@/components/variant/VariantPreview';
 import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Product, Creative, NewVariantFormData } from '@/types';
 
 const STEPS = [
   { id: 1, title: 'Select Product', description: 'Choose your Shopify product' },
-  { id: 2, title: 'Upload Creative', description: 'Add your advertising creative' },
-  { id: 3, title: 'Additional Context', description: 'Provide campaign details' },
+  {
+    id: 2,
+    title: 'Upload Creative',
+    description: 'Add your creative and campaign context',
+  },
+  { id: 3, title: 'Review', description: 'Validate and edit variant content' },
 ];
 
 export function NewVariant() {
@@ -166,13 +171,21 @@ export function NewVariant() {
                 />
               )}
               {currentStep === 2 && (
-                <CreativeUploader
-                  selectedCreative={selectedCreative}
-                  onCreativeSelect={setSelectedCreative}
-                />
+                <div className="space-y-6">
+                  <CreativeUploader
+                    selectedCreative={selectedCreative}
+                    onCreativeSelect={setSelectedCreative}
+                  />
+                  <AdditionalContext
+                    formData={formData}
+                    onFormDataChange={setFormData}
+                  />
+                </div>
               )}
               {currentStep === 3 && (
-                <AdditionalContext
+                <VariantReview
+                  product={selectedProduct}
+                  creative={selectedCreative}
                   formData={formData}
                   onFormDataChange={setFormData}
                 />
