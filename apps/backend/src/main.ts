@@ -229,21 +229,78 @@ app.get('/micro-kernel.js', (req, res) => {
     },
 
     loadMapping: function() {
-      this.mapping = {
+      // Utiliser le theme adapter s'il est fourni dans les données
+      if (this.data && this.data.theme_adapter) {
+        console.log('🎯 [ADLIGN SaaS] Chargement du mapping depuis ThemeAdapter');
+        this.mapping = this.buildMappingFromAdapter(this.data.theme_adapter);
+      } else {
+        console.log('⚠️ [ADLIGN SaaS] Pas de ThemeAdapter, utilisation du mapping par défaut');
+        // Fallback vers mapping générique amélioré
+        this.mapping = this.getDefaultMapping();
+      }
+      
+      console.log('📋 [ADLIGN SaaS] Mapping chargé:', Object.keys(this.mapping));
+    },
+
+    buildMappingFromAdapter: function(adapter) {
+      const mapping = {};
+      
+      if (adapter.selectors && adapter.strategies) {
+        Object.keys(adapter.selectors).forEach(key => {
+          const selectors = adapter.selectors[key];
+          const strategy = adapter.strategies[key] || 'text';
+          
+          mapping[key] = {
+            selectors: Array.isArray(selectors) ? selectors : [selectors],
+            strategy: strategy
+          };
+        });
+      }
+      
+      return mapping;
+    },
+
+    getDefaultMapping: function() {
+      return {
         title: {
-          selectors: ['h1', '.product-title', '.product__title', '.product__heading h1'],
+          selectors: [
+            'h1.product__title',
+            'h1.product-title', 
+            '.product__title h1',
+            '.product-title',
+            'h1[class*="title"]',
+            'h1:first-of-type'
+          ],
           strategy: 'text'
         },
         description_html: {
-          selectors: ['.product__description', '.product-description', '.rte:not(.price)'],
+          selectors: [
+            '.product__description',
+            '.product-description',
+            '.product-single__description',
+            '.rte:not([class*="price"])',
+            '[class*="description"]:not([class*="meta"])'
+          ],
           strategy: 'html'
         },
         cta_primary: {
-          selectors: ['button[type="submit"]', '.add-to-cart', '.product__cta'],
+          selectors: [
+            'button[name="add"]',
+            '.product-form__buttons button',
+            '.add-to-cart',
+            '.product__cta',
+            'button[type="submit"]'
+          ],
           strategy: 'text'
         },
         promotional_badge: {
-          selectors: ['.product__badge', '.badge', '.tag'],
+          selectors: [
+            '.product__badge',
+            '.badge',
+            '.tag',
+            '[class*="badge"]',
+            '[class*="tag"]'
+          ],
           strategy: 'badge'
         }
       };

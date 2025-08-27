@@ -1,9 +1,48 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { MappingWorker } from './index';
 import { cacheService } from './services/cache';
 import { mappingService } from './services/mapping';
 import { shopifyService } from './services/shopify';
 import { themeAnalyzerService } from './services/themeAnalyzer';
+
+// Mock OpenAI
+jest.mock('openai', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: jest.fn().mockResolvedValue({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                selectors: { product_title: 'h1' },
+                order: ['product_title'],
+                confidence: { product_title: 0.9 },
+                strategies: { product_title: 'text' }
+              })
+            }
+          }],
+          usage: { total_tokens: 50 }
+        })
+      }
+    }
+  }))
+}));
+
+// Mock Redis
+jest.mock('redis', () => ({
+  createClient: jest.fn(() => ({
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    quit: jest.fn().mockResolvedValue(undefined),
+    isReady: true
+  }))
+}));
+
+// Mock environment variables
+process.env.OPENAI_API_KEY = 'test-api-key';
+process.env.REDIS_URL = 'redis://localhost:6379';
 
 describe('MappingWorker', () => {
   let worker: MappingWorker;

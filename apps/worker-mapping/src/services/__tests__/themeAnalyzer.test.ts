@@ -1,89 +1,113 @@
-import { ThemeAnalyzer } from '../themeAnalyzer';
+import { ThemeAnalyzerService } from '../themeAnalyzer';
 
-// Mock Playwright browser
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newPage: jest.fn().mockResolvedValue({
-        goto: jest.fn(),
-        evaluate: jest.fn(),
-        close: jest.fn()
-      }),
-      close: jest.fn()
-    })
-  }
+// Mock OpenAI
+jest.mock('openai', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: jest.fn().mockResolvedValue({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                selectors: {
+                  product_title: 'h1.product-title',
+                  product_price: '.price'
+                },
+                order: ['product_title', 'product_price'],
+                confidence: {
+                  product_title: 0.9,
+                  product_price: 0.8
+                },
+                strategies: {
+                  product_title: 'text',
+                  product_price: 'text'
+                }
+              })
+            }
+          }],
+          usage: { total_tokens: 100 }
+        })
+      }
+    }
+  }))
 }));
 
-describe('ThemeAnalyzer', () => {
-  let analyzer: ThemeAnalyzer;
+// Mock environment variables
+process.env.OPENAI_API_KEY = 'test-api-key';
+
+describe('ThemeAnalyzerService', () => {
+  let analyzer: ThemeAnalyzerService;
 
   beforeEach(() => {
-    analyzer = new ThemeAnalyzer();
+    analyzer = new ThemeAnalyzerService();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('analyzeTheme', () => {
-    it('should analyze theme and return selectors', async () => {
-      const mockUrl = 'https://test-shop.myshopify.com/products/test-product';
+  describe('generateThemeAdapter', () => {
+    it('should generate theme adapter with valid structure', async () => {
+      const mockDomData = {
+        product_title: 'Test Product',
+        product_form: { selector: '.product-form' },
+        product_images: [{ src: 'test.jpg', alt: 'Test', selector: 'img' }],
+        product_description: 'Test description',
+        usp_lists: [{ text: 'Feature 1', selector: '.feature' }],
+        badges: [{ text: 'Sale', selector: '.badge' }],
+        url: 'https://test-shop.myshopify.com/products/test-product',
+        timestamp: '2023-01-01T00:00:00Z'
+      };
       
-      const result = await analyzer.analyzeTheme(mockUrl);
+      const result = await analyzer.generateThemeAdapter(mockDomData);
       
       expect(result).toBeDefined();
       expect(result).toHaveProperty('selectors');
       expect(result).toHaveProperty('confidence');
-    });
-
-    it('should handle invalid URLs gracefully', async () => {
-      const invalidUrl = 'not-a-valid-url';
-      
-      await expect(analyzer.analyzeTheme(invalidUrl)).rejects.toThrow();
+      expect(result).toHaveProperty('strategies');
+      expect(result).toHaveProperty('theme_fingerprint');
     });
   });
 
-  describe('detectSelectors', () => {
-    it('should detect common Shopify theme selectors', () => {
-      const mockElements = [
-        { selector: 'h1.product-title', tagName: 'H1', className: 'product-title' },
-        { selector: '.product-description', tagName: 'DIV', className: 'product-description' },
-        { selector: '.add-to-cart', tagName: 'BUTTON', className: 'add-to-cart' }
-      ];
+  describe('generateThemeFingerprint', () => {
+    it('should generate consistent fingerprint for same DOM data', () => {
+      const mockDomData = {
+        product_title: 'Test Product',
+        product_form: { selector: '.product-form' },
+        product_images: [{ src: 'test.jpg', alt: 'Test', selector: 'img' }],
+        product_description: 'Test description',
+        usp_lists: [{ text: 'Feature 1', selector: '.feature' }],
+        badges: [{ text: 'Sale', selector: '.badge' }],
+        url: 'https://test-shop.myshopify.com/products/test-product',
+        timestamp: '2023-01-01T00:00:00Z'
+      };
 
-      const selectors = analyzer.detectSelectors(mockElements);
+      const fingerprint1 = analyzer.generateThemeFingerprint(mockDomData);
+      const fingerprint2 = analyzer.generateThemeFingerprint(mockDomData);
 
-      expect(selectors).toBeDefined();
-      expect(selectors.title).toContain('h1.product-title');
-      expect(selectors.description).toContain('.product-description');
-      expect(selectors.add_to_cart).toContain('.add-to-cart');
+      expect(fingerprint1).toBe(fingerprint2);
+      expect(fingerprint1).toBeTruthy();
     });
   });
 
-  describe('calculateConfidence', () => {
-    it('should return higher confidence for well-structured themes', () => {
-      const mockSelectors = {
-        title: 'h1.product-title',
-        description: '.product-description',
-        price: '.product-price',
-        add_to_cart: '.add-to-cart'
+  describe('analyzeSelectorConfidence', () => {
+    it('should return higher confidence for data attributes', () => {
+      const mockDomData = {
+        product_title: 'Test Product',
+        product_form: { selector: '.product-form' },
+        product_images: [],
+        product_description: 'Test description',
+        usp_lists: [],
+        badges: [],
+        url: 'https://test-shop.myshopify.com',
+        timestamp: '2023-01-01T00:00:00Z'
       };
 
-      const confidence = analyzer.calculateConfidence(mockSelectors, 10);
+      const dataAttrConfidence = analyzer.analyzeSelectorConfidence('[data-product-title]', mockDomData);
+      const classConfidence = analyzer.analyzeSelectorConfidence('.product-title', mockDomData);
 
-      expect(confidence).toBeGreaterThan(0);
-      expect(confidence).toBeLessThanOrEqual(1);
-    });
-
-    it('should return lower confidence for themes with few identifiable elements', () => {
-      const mockSelectors = {
-        title: 'h1'
-      };
-
-      const confidence = analyzer.calculateConfidence(mockSelectors, 2);
-
-      expect(confidence).toBeGreaterThan(0);
-      expect(confidence).toBeLessThan(0.5);
+      expect(dataAttrConfidence).toBeGreaterThan(classConfidence);
     });
   });
 });
