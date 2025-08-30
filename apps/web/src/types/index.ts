@@ -61,6 +61,9 @@ export interface DashboardStats {
   active_campaigns: number;
   avg_conversion_rate: number;
   total_revenue_impact: number;
+  total_views: number;
+  total_clicks: number;
+  total_conversions: number;
 }
 
 export interface ChartData {

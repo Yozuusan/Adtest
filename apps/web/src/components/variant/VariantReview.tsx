@@ -14,7 +14,7 @@ interface VariantReviewProps {
   onFormDataChange: (data: Partial<NewVariantFormData>) => void;
 }
 
-export function VariantReview({ product, creative, formData, onFormDataChange }: VariantReviewProps) {
+export function VariantReview({ product, creative, onFormDataChange }: VariantReviewProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -68,16 +68,16 @@ export function VariantReview({ product, creative, formData, onFormDataChange }:
     
     switch (field) {
       case 'title':
-        updates.variant_title = editValue;
+        updates.campaign_context = editValue;
         break;
       case 'description':
-        updates.variant_description = editValue;
+        updates.campaign_context = editValue;
         break;
       case 'cta':
-        updates.variant_cta = editValue;
+        updates.campaign_context = editValue;
         break;
       case 'badge':
-        updates.variant_badge = editValue;
+        updates.campaign_context = editValue;
         break;
     }
     

@@ -75,10 +75,10 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dashboardStats?.conversion_rate ? `${dashboardStats.conversion_rate.toFixed(1)}%` : 'N/A'}
+              {dashboardStats?.avg_conversion_rate ? `${dashboardStats.avg_conversion_rate.toFixed(1)}%` : 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardStats?.conversion_rate ? 'Average across variants' : 'No data yet'}
+              {dashboardStats?.avg_conversion_rate ? 'Average across variants' : 'No data yet'}
             </p>
           </CardContent>
         </Card>
@@ -90,10 +90,10 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dashboardStats?.events_by_type?.variant_view || 0}
+              {dashboardStats?.total_views || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardStats?.events_by_type?.variant_view ? 'Variant impressions' : 'No traffic yet'}
+              {dashboardStats?.total_views ? 'Variant impressions' : 'No traffic yet'}
             </p>
           </CardContent>
         </Card>
@@ -105,10 +105,10 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dashboardStats?.events_by_type?.variant_click || 0}
+              {dashboardStats?.total_clicks || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {dashboardStats?.events_by_type?.variant_click ? 'CTA interactions' : 'No clicks yet'}
+              {dashboardStats?.total_clicks ? 'CTA interactions' : 'No clicks yet'}
             </p>
           </CardContent>
         </Card>
@@ -150,7 +150,7 @@ export function Overview() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <Target className="h-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 font-medium">No variants yet</p>
                 <p className="text-sm text-gray-500 mt-1">Create your first variant to get started</p>
                 <Button className="mt-4" asChild>
