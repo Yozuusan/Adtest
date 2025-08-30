@@ -36,6 +36,35 @@ router.get('/install', async (req, res, next) => {
 });
 
 /**
+ * Route de succès OAuth - redirige vers le frontend après installation
+ * GET /oauth/success?shop=...&token=...
+ */
+router.get('/success', async (req, res, next) => {
+  try {
+    const { shop, token } = req.query;
+    
+    if (!shop || typeof shop !== 'string') {
+      throw createError('Shop parameter is required', 400);
+    }
+
+    if (!token || typeof token !== 'string') {
+      throw createError('Token parameter is required', 400);
+    }
+
+    console.log(`✅ OAuth success for shop: ${shop}`);
+
+    // Rediriger vers le frontend avec les paramètres de succès
+    const frontendUrl = 'https://adtest-web.vercel.app';
+    const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token}`;
+    
+    console.log(`🎯 Redirecting to frontend: ${successUrl}`);
+    res.redirect(successUrl);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Callback OAuth - Shopify renvoie le code d'autorisation
  * GET /oauth/callback?code=...&shop=...&state=...
  */
@@ -62,20 +91,8 @@ router.get('/callback', async (req, res, next) => {
     
     console.log(`✅ OAuth successful for ${shop}. Scopes: ${token.scope}`);
 
-    // 🔧 FIX: Détecter l'environnement et rediriger correctement
-    let frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL;
-    
-    // Si pas de FRONTEND_URL configurée, détecter depuis les headers
-    if (!frontendUrl) {
-      const referer = req.get('Referer');
-      if (referer && referer.includes('vercel.app')) {
-        // Extraire l'URL Vercel du referer
-        const vercelMatch = referer.match(/(https:\/\/[^\/]+\.vercel\.app)/);
-        frontendUrl = vercelMatch ? vercelMatch[1] : 'http://localhost:3000';
-      } else {
-        frontendUrl = 'http://localhost:3000';
-      }
-    }
+    // 🔧 FIX: Redirection directe vers le frontend Vercel
+    const frontendUrl = 'https://adtest-web.vercel.app';
     
     console.log(`🎯 Redirecting to frontend: ${frontendUrl}`);
     
@@ -87,12 +104,7 @@ router.get('/callback', async (req, res, next) => {
     console.error('❌ OAuth callback error:', error);
     
     // Détecter l'URL frontend pour l'erreur aussi
-    let frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
-    const referer = req.get('Referer');
-    if (referer && referer.includes('vercel.app')) {
-      const vercelMatch = referer.match(/(https:\/\/[^\/]+\.vercel\.app)/);
-      frontendUrl = vercelMatch ? vercelMatch[1] : frontendUrl;
-    }
+    const frontendUrl = 'https://adtest-web.vercel.app';
     
     // Rediriger vers une page d'erreur
     const errorUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`;
