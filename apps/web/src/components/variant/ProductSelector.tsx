@@ -4,46 +4,33 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/types';
+import { useVariantStore } from '@/stores/useVariantStore';
 
 interface ProductSelectorProps {
   selectedProduct: Product | null;
   onProductSelect: (product: Product) => void;
 }
 
-const mockProducts: Product[] = [
-  {
-    id: '15096939610438',
-    gid: 'gid://shopify/Product/15096939610438',
-    title: 'Savon à Barres de Noix de Coco',
-    handle: 'echantillon-savon-a-barres-de-noix-de-coco',
-    status: 'active',
-    product_type: 'Beauty',
-    vendor: 'Adlign',
-    image_url: 'https://cdn.shopify.com/s/files/1/0953/0946/3878/files/soap-image-1.png?v=1754444118',
-    created_at: '2025-08-05T21:35:23-04:00',
-    updated_at: '2025-08-09T06:02:13-04:00',
-    product_url: 'https://adlign.myshopify.com/products/echantillon-savon-a-barres-de-noix-de-coco'
-  }
-];
-
 export function ProductSelector({ selectedProduct, onProductSelect }: ProductSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { products, isLoading, error, fetchProducts, currentShop } = useVariantStore();
 
   useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      setProducts(mockProducts);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    // Get shop from localStorage or use default
+    const shop = localStorage.getItem('shopDomain') || 'adlign.myshopify.com';
+    if (shop) {
+      fetchProducts(shop, searchTerm);
+    }
+  }, [searchTerm, fetchProducts]);
 
   const filteredProducts = products.filter(product =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.handle.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,10 +40,17 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
         <Input
           placeholder="Search products by name or handle..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => handleSearch(e.target.value)}
           className="pl-10"
         />
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Selected Product */}
       {selectedProduct && (
@@ -129,22 +123,24 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
           ))
         ) : (
           <div className="text-center py-8">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <Package className="h-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No products found</p>
             <p className="text-sm text-gray-400 mt-1">
-              Try adjusting your search terms
+              {searchTerm ? 'Try adjusting your search terms' : 'Connect your Shopify store to see products'}
             </p>
           </div>
         )}
       </div>
 
-      {/* View All Products Link */}
-      <div className="text-center">
-        <Button variant="outline" className="w-full">
-          <Search className="mr-2 h-4 w-4" />
-          Search All Products
-        </Button>
-      </div>
+      {/* Connect Store Button if no products */}
+      {!isLoading && products.length === 0 && !currentShop && (
+        <div className="text-center">
+          <Button variant="outline" className="w-full" onClick={() => window.location.href = '/connect-store'}>
+            <Package className="mr-2 h-4 w-4" />
+            Connect Shopify Store
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

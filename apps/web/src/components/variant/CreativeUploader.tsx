@@ -4,27 +4,24 @@ import { Upload, FileText, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Creative } from '@/types';
+import { apiService } from '@/services/api';
 
 // AI Content Extraction Function
 const extractContentFromCreative = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('creative_file', file);
-  formData.append('shop', 'adlign.myshopify.com');
-
-  // Use environment variable for API URL, fallback to localhost for development
-  const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
   
-  const response = await fetch(`${apiUrl}/ai-variants/analyze-creative`, {
-    method: 'POST',
-    body: formData,
-  });
+  // Get shop from localStorage or use default
+  const shop = localStorage.getItem('shopDomain') || 'adlign.myshopify.com';
+  formData.append('shop', shop);
 
-  if (!response.ok) {
-    throw new Error(`Content extraction failed: ${response.statusText}`);
+  try {
+    const response = await apiService.analyzeCreative(formData);
+    return response.extracted_text || 'Contenu analysé avec succès';
+  } catch (error) {
+    console.error('Content extraction failed:', error);
+    throw new Error('Échec de l\'analyse du contenu créatif');
   }
-
-  const result = await response.json();
-  return result.extracted_text || 'Contenu analysé avec succès';
 };
 
 interface CreativeUploaderProps {
@@ -57,16 +54,10 @@ export function CreativeUploader({ selectedCreative, onCreativeSelect }: Creativ
         })
         .catch((error) => {
           console.error('Content extraction failed:', error);
-          // Fallback to mock data
-          let mockExtractedText = "Contenu publicitaire détecté - Analyse manuelle recommandée";
-          
-          if (file.name.toLowerCase().includes('creative') || file.name.toLowerCase().includes('savon')) {
-            mockExtractedText = "SAVON ANTI DÉMANGEAISON - Produit naturel apaisant - Soulage les irritations cutanées";
-          }
-          
+          // Show error to user instead of fallback mock data
           const updatedCreative: Creative = {
             ...creative,
-            extracted_text: mockExtractedText
+            extracted_text: `Erreur d'analyse: ${error.message}. Veuillez réessayer ou contacter le support.`
           };
           onCreativeSelect(updatedCreative);
         });
