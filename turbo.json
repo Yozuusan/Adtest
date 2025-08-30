@@ -6,6 +6,18 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**"]
     },
+    "build#@adlign/backend": {
+      "dependsOn": ["@adlign/types#build", "^build"]
+    },
+    "build#@adlign/web": {
+      "dependsOn": ["@adlign/types#build", "^build"]
+    },
+    "build#@adlign/worker-mapping": {
+      "dependsOn": ["@adlign/types#build", "^build"]
+    },
+    "build#@adlign/shopify-extension": {
+      "dependsOn": ["@adlign/types#build", "^build"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
