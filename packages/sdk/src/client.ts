@@ -1,15 +1,48 @@
 // Client principal du SDK Adlign
 
 import { HttpClient } from './http-client';
-import type {
-  VariantPayload,
-  ThemeAdapter,
-  AnalyticsEvent,
-  Signed,
-  ApiResponse,
-  PaginatedResponse,
-  QueryFilters,
-} from '@adlign/types';
+// Types locaux pour remplacer @adlign/types cassé
+export interface VariantPayload {
+  slots: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface ThemeAdapter {
+  id: string;
+  selectors: Record<string, string>;
+  [key: string]: any;
+}
+
+export interface AnalyticsEvent {
+  id: string;
+  event_type: string;
+  [key: string]: any;
+}
+
+export interface Signed<T> {
+  data: T;
+  signature: string;
+}
+
+export interface ApiResponse<T = any> {
+  data?: T;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface QueryFilters {
+  page?: number;
+  limit?: number;
+  [key: string]: any;
+}
 
 export interface AdlignClientConfig {
   baseURL: string;

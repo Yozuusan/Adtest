@@ -5,5 +5,4 @@ export { HttpClient } from './http-client';
 export type { AdlignClientConfig } from './client';
 export type { HttpClientConfig, RequestOptions } from './http-client';
 
-// Ré-export des types pour faciliter l'utilisation
-export type * from '@adlign/types';
+// Types locaux définis dans ce package

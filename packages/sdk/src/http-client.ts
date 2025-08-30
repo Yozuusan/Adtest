@@ -1,6 +1,18 @@
 // Client HTTP de base avec authentification
 
-import type { ApiResponse, AuthHeaders } from '@adlign/types';
+// Types locaux pour remplacer @adlign/types cassé
+export interface ApiResponse<T = any> {
+  data?: T;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface AuthHeaders {
+  'Authorization'?: string;
+  'X-API-Key'?: string;
+  [key: string]: string | undefined;
+}
 
 export interface HttpClientConfig {
   baseURL: string;
