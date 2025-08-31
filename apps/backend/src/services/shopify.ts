@@ -1,6 +1,7 @@
 import { createError } from '../middleware/errorHandler';
 import { Redis } from '@upstash/redis';
 import { saveShopToken, getShopToken, type ShopToken } from './tokens';
+import { getShopifyRedirectUrl } from '../config/urls';
 
 // Types Shopify
 interface ShopifyToken {
@@ -104,14 +105,18 @@ export class ShopifyService {
    */
   generateInstallUrl(shop: string, scopes: string[] = ['read_products', 'write_products']): string {
     const scope = scopes.join(',');
-    const redirectUri = `${this.appUrl}/oauth/callback`;
+    
+    // 🔧 FIX: Utiliser la configuration centralisée des URLs
+    const redirectUri = getShopifyRedirectUrl();
+    
+    console.log(`🔗 OAuth redirect_uri: ${redirectUri}`);
     
     const params = new URLSearchParams({
       client_id: this.apiKey,
       scope,
       redirect_uri: redirectUri,
       state: this.generateState(shop)
-  });
+    });
 
     return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
   }

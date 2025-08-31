@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { initSentry, sentryRequestHandler, sentryErrorHandler } from './monitoring/sentry';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { validateEnvironment } from './utils/env-validation';
+import { logUrlConfig } from './config/urls';
 
 // Valider les variables d'environnement au démarrage
 try {
@@ -13,6 +14,9 @@ try {
   console.log('  PORT:', env.PORT);
   console.log('  SUPABASE_URL:', env.SUPABASE_URL ? '✅ défini' : '❌ undefined');
   console.log('  SHOPIFY_API_KEY:', env.SHOPIFY_API_KEY ? '✅ défini' : '❌ undefined');
+  
+  // Afficher la configuration des URLs
+  logUrlConfig();
 } catch (error: any) {
   console.error('❌ Erreur de validation des variables d\'environnement:', error?.message || String(error));
   process.exit(1);

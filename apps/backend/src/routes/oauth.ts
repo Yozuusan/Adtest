@@ -3,13 +3,14 @@ import { shopifyService } from '../services/shopify';
 import { getShopToken } from '../services/tokens';
 import { normalizeShopDomain } from '../utils/shop';
 import { createError } from '../middleware/errorHandler';
+import { getFrontendUrl as getConfigFrontendUrl } from '../config/urls';
 
 const router = Router();
 
 /**
  * Fonction utilitaire pour détecter l'URL du frontend
  */
-function getFrontendUrl(req: any): string {
+function detectFrontendUrl(req: any): string {
   // 1. Essayer de récupérer depuis le header Referer (si la requête vient du frontend)
   const referer = req.headers.referer;
   if (referer) {
@@ -37,8 +38,8 @@ function getFrontendUrl(req: any): string {
     }
   }
 
-  // 3. Fallback: utiliser la variable d'environnement FRONTEND_URL ou l'URL par défaut
-  const fallbackUrl = process.env.FRONTEND_URL || 'https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app';
+  // 3. Fallback: utiliser la configuration centralisée des URLs
+  const fallbackUrl = getConfigFrontendUrl();
   console.log(`🔄 Using fallback frontend URL: ${fallbackUrl}`);
   
   return fallbackUrl;
@@ -92,7 +93,7 @@ router.get('/success', async (req, res, next) => {
     console.log(`✅ OAuth success for shop: ${shop}`);
 
     // Rediriger vers le frontend avec les paramètres de succès
-    const frontendUrl = getFrontendUrl(req);
+    const frontendUrl = detectFrontendUrl(req);
     const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token}`;
     
     console.log(`🎯 Redirecting to frontend: ${successUrl}`);
@@ -130,7 +131,7 @@ router.get('/callback', async (req, res, next) => {
     console.log(`✅ OAuth successful for ${shop}. Scopes: ${token.scope}`);
 
     // 🔧 FIX: Redirection directe vers le frontend Vercel
-    const frontendUrl = getFrontendUrl(req);
+    const frontendUrl = detectFrontendUrl(req);
     
     console.log(`🎯 Redirecting to frontend: ${frontendUrl}`);
     
@@ -142,7 +143,7 @@ router.get('/callback', async (req, res, next) => {
     console.error('❌ OAuth callback error:', error);
     
     // Détecter l'URL frontend pour l'erreur aussi
-    const frontendUrl = getFrontendUrl(req);
+    const frontendUrl = detectFrontendUrl(req);
     
     // Rediriger vers une page d'erreur
     const errorUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`;
