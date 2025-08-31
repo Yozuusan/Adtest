@@ -35,7 +35,6 @@ export function DebugSupabase() {
   const testUserShopsTable = async () => {
     addLog('--- TEST TABLE USER_SHOPS ---');
     try {
-      // Test 1: Simple count query
       const { error: countError } = await supabase
         .from('user_shops')
         .select('*', { count: 'exact', head: true });
@@ -50,7 +49,6 @@ export function DebugSupabase() {
       
       addLog('✅ Table user_shops accessible');
       
-      // Test 2: Select query if user is authenticated
       if (user) {
         const { data: selectData, error: selectError } = await supabase
           .from('user_shops')
@@ -128,7 +126,6 @@ export function DebugSupabase() {
   const testRLSPolicies = async () => {
     addLog('--- TEST POLICIES RLS ---');
     try {
-      // Test avec auth.uid() directement
       const { data, error } = await supabase.rpc('auth.uid');
       
       if (error) {
@@ -152,7 +149,7 @@ export function DebugSupabase() {
     try {
       const testData = {
         user_id: user.id,
-        shop_id: '123e4567-e89b-12d3-a456-426614174000', // UUID test
+        shop_id: '123e4567-e89b-12d3-a456-426614174000',
         role: 'owner' as const
       };
       
@@ -169,7 +166,6 @@ export function DebugSupabase() {
         addLog('✅ Insertion test réussie');
         addLog(`   ID créé: ${data?.[0]?.id}`);
         
-        // Nettoyer le test
         if (data?.[0]?.id) {
           await supabase.from('user_shops').delete().eq('id', data[0].id);
           addLog('🧹 Test data nettoyée');
