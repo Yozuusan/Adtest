@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,6 +7,7 @@ import {
   Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   {
@@ -33,15 +33,10 @@ const navigation = [
 ];
 
 export function Sidebar() {
-  const [shopDomain, setShopDomain] = useState<string | null>(null);
+  const { currentShop, signOut } = useAuth();
 
-  useEffect(() => {
-    setShopDomain(localStorage.getItem('shopDomain'));
-  }, []);
-
-  const disconnect = () => {
-    localStorage.removeItem('shopDomain');
-    setShopDomain(null);
+  const disconnect = async () => {
+    await signOut();
   };
 
   const today = new Date();
@@ -93,9 +88,9 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-4">
-        {shopDomain ? (
+        {currentShop ? (
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">{shopDomain}</div>
+            <div className="text-sm text-gray-700">{currentShop.shop.domain}</div>
             <button
               onClick={disconnect}
               className="text-xs text-red-600 hover:underline"

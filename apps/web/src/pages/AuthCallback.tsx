@@ -30,9 +30,6 @@ export function AuthCallback() {
           // Actualiser la liste des boutiques de l'utilisateur
           await fetchUserShops();
           
-          // Stocker le shop domain pour compatibilité
-          localStorage.setItem('shopDomain', shop);
-          
           // Rediriger vers le dashboard après 2 secondes
           setTimeout(() => {
             navigate('/');
