@@ -8,7 +8,7 @@ import { getEnvVar } from '../utils/env-validation';
 // Types pour les tables Supabase
 export interface SupabaseShop {
   id: string;
-  shop_domain: string; // Changé de 'domain' à 'shop_domain'
+  domain: string; // Utilise 'domain' selon le schéma réel de la table shops
   access_token: string;
   scope?: string;
   shop_owner?: string;
@@ -107,7 +107,7 @@ export class SupabaseService {
       const { data, error } = await this.client
         .from('shops')
         .upsert({
-          shop_domain: shopData.shop_domain,
+          domain: shopData.domain,
           access_token: shopData.access_token,
           scope: shopData.scope,
           shop_owner: shopData.shop_owner,
@@ -118,7 +118,7 @@ export class SupabaseService {
           expires_at: shopData.expires_at,
           is_active: shopData.is_active
         }, {
-          onConflict: 'shop_domain'
+          onConflict: 'domain'
         })
         .select()
         .single();

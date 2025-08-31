@@ -27,7 +27,7 @@ export async function saveShopToken(shopRaw: string, token: ShopToken, ttlDays =
 
     // Sauvegarder dans Supabase (persistence)
     await supabaseService.upsertShop({
-      shop_domain: shop, // Changé de 'domain' à 'shop_domain'
+      domain: shop, // Utilise 'domain' selon le schéma de la table shops
       access_token: token.access_token,
       scope: token.scope,
       is_active: true
