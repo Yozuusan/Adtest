@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/types';
 import { useVariantStore } from '@/stores/useVariantStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductSelectorProps {
   selectedProduct: Product | null;
@@ -13,15 +14,14 @@ interface ProductSelectorProps {
 
 export function ProductSelector({ selectedProduct, onProductSelect }: ProductSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const { products, isLoading, error, fetchProducts, currentShop } = useVariantStore();
+  const { products, isLoading, error, fetchProducts } = useVariantStore();
+  const { currentShop } = useAuth();
 
   useEffect(() => {
-    // Get shop from localStorage or use default
-    const shop = localStorage.getItem('shopDomain') || 'adlign.myshopify.com';
-    if (shop) {
-      fetchProducts(shop, searchTerm);
-    }
-  }, [searchTerm, fetchProducts]);
+    // Use currentShop from AuthContext
+    if (!currentShop?.shop?.domain) return;
+    fetchProducts(currentShop.shop.domain, searchTerm);
+  }, [currentShop?.shop?.domain, searchTerm, fetchProducts]);
 
   const filteredProducts = products.filter(product =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

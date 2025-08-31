@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BrandAnalysis {
   brand_personality: string;
@@ -21,25 +22,23 @@ export function Brand() {
   const [analysis, setAnalysis] = useState<BrandAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customBrandInfo, setCustomBrandInfo] = useState('');
-  const [shopDomain, setShopDomain] = useState<string | null>(null);
+  const { currentShop } = useAuth();
   const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
-    const shop = localStorage.getItem('shopDomain');
-    setShopDomain(shop);
-    if (shop) {
-      fetch(`${apiUrl}/brand/analysis?shop=${shop}`)
+    if (currentShop?.shop?.domain) {
+      fetch(`${apiUrl}/brand/analysis?shop=${currentShop.shop.domain}`)
         .then((res) => (res.ok ? res.json() : Promise.reject()))
         .then((data) => setAnalysis(data.data?.ai_analysis || null))
         .catch(() => setAnalysis(null));
     }
-  }, [apiUrl]);
+  }, [currentShop?.shop?.domain, apiUrl]);
 
   const handleAnalyzeBrand = async () => {
-    if (!shopDomain) return;
+    if (!currentShop?.shop?.domain) return;
     setIsAnalyzing(true);
     try {
-      const res = await fetch(`${apiUrl}/brand/analyze?shop=${shopDomain}`);
+      const res = await fetch(`${apiUrl}/brand/analyze?shop=${currentShop.shop.domain}`);
       if (res.ok) {
         const json = await res.json();
         setAnalysis(json.data?.ai_analysis || null);
@@ -57,7 +56,7 @@ export function Brand() {
     }
   };
 
-  if (!shopDomain) {
+  if (!currentShop?.shop?.domain) {
     return (
       <Card>
         <CardContent className="p-12 text-center">
