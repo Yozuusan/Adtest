@@ -85,7 +85,7 @@ export function DebugSupabase() {
           updated_at,
           shop:shops!inner (
             id,
-            shop_domain,
+            domain,
             shop_owner,
             email,
             is_active

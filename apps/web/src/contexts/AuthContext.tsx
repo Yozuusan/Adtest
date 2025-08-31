@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updated_at,
           shop:shops!inner (
             id,
-            shop_domain,
+            domain,
             shop_owner,
             email,
             country_code,
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCurrentShop(shop);
     if (shop) {
       localStorage.setItem('currentShopId', shop.id);
-      localStorage.setItem('shopDomain', shop.shop.shop_domain || '');
+      localStorage.setItem('shopDomain', shop.shop.domain || '');
     } else {
       localStorage.removeItem('currentShopId');
       localStorage.removeItem('shopDomain');

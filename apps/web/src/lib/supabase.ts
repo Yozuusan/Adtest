@@ -23,7 +23,7 @@ export interface UserShopWithShop extends Omit<UserShop, 'shop'> {
 
 export interface Shop {
   id: string;
-  shop_domain: string;
+  domain: string;
   access_token: string;
   scope?: string;
   shop_owner?: string;
