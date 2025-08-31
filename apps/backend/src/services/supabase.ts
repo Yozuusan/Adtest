@@ -139,7 +139,7 @@ export class SupabaseService {
       const { data, error } = await this.client
         .from('shops')
         .select('*')
-        .eq('shop_domain', domain)
+        .eq('domain', domain)
         .eq('is_active', true)
         .single();
 
@@ -164,7 +164,7 @@ export class SupabaseService {
           expires_at: expiresAt,
           updated_at: new Date().toISOString()
         })
-        .eq('shop_domain', domain);
+        .eq('domain', domain);
 
       if (error) throw error;
       console.log(`✅ Shop token updated for ${domain}`);
@@ -601,7 +601,7 @@ export class SupabaseService {
           updated_at,
           shop:shops!inner (
             id,
-            shop_domain,
+            domain,
             shop_owner,
             email,
             country_code,

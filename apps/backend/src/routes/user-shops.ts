@@ -69,7 +69,7 @@ router.get('/debug/all', async (req, res, next) => {
         updated_at,
         shop:shops!inner (
           id,
-          shop_domain,
+          domain,
           shop_owner,
           email,
           is_active

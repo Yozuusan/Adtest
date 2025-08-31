@@ -181,7 +181,7 @@ router.get('/callback', async (req, res, next) => {
     console.log('🔄 Step 2: Upsert shop in Supabase...');
     // Créer ou mettre à jour la boutique dans Supabase
     const shopData = await supabaseService.upsertShop({
-      shop_domain: shop,
+      domain: shop,
       access_token: token.access_token,
       scope: token.scope,
       is_active: true
@@ -189,7 +189,7 @@ router.get('/callback', async (req, res, next) => {
 
     console.log(`✅ Step 2 completed - Shop upserted in Supabase:`);
     console.log(`   Shop ID: ${shopData.id}`);
-    console.log(`   Shop Domain: ${shopData.shop_domain}`);
+    console.log(`   Shop Domain: ${shopData.domain}`);
 
     console.log('🔄 Step 3: Create user-shop association...');
     // Créer l'association utilisateur-boutique
