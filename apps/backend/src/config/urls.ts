@@ -23,7 +23,7 @@ export function getAppUrls(): AppUrls {
     backend: process.env.APP_URL || process.env.BACKEND_URL || 'http://localhost:3001',
     
     // Frontend web app - Vercel ou local
-    frontend: process.env.FRONTEND_URL || process.env.WEB_URL || 'http://localhost:3000',
+    frontend: process.env.FRONTEND_URL || process.env.WEB_URL || 'https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app',
     
     // Shopify app extension - Vercel ou local
     shopifyExtension: process.env.SHOPIFY_EXTENSION_URL || process.env.FRONTEND_URL || 'http://localhost:3000'

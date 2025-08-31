@@ -24,16 +24,16 @@ BACKEND_URL=https://adtest-production.up.railway.app
 #### **Frontend Web App**
 ```bash
 # URL du frontend principal (Vercel, Netlify, etc.)
-FRONTEND_URL=https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
+FRONTEND_URL=https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
 
 # Alternative pour le frontend
-WEB_URL=https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
+WEB_URL=https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
 ```
 
 #### **Shopify App Extension**
 ```bash
 # URL de l'extension Shopify (généralement la même que le frontend)
-SHOPIFY_EXTENSION_URL=https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
+SHOPIFY_EXTENSION_URL=https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
 ```
 
 ### **Base de Données (Supabase)**
@@ -92,8 +92,8 @@ SHOPIFY_EXTENSION_URL=https://adtest-preview.vercel.app
 ```bash
 # Variables Vercel/Railway
 APP_URL=https://adtest-production.up.railway.app
-FRONTEND_URL=https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
-SHOPIFY_EXTENSION_URL=https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
+FRONTEND_URL=https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
+SHOPIFY_EXTENSION_URL=https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
 ```
 
 ## 🔧 **Utilisation dans le Code**
@@ -123,12 +123,12 @@ logUrlConfig();
 
 ### **App URL**
 ```
-https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
+https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
 ```
 
 ### **Allowed Redirection URLs**
 ```
-https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app/auth/callback
+https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app/auth/callback
 ```
 
 ## ✅ **Avantages de cette Approche**
@@ -154,9 +154,9 @@ https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app/auth/callback
 # Dans les logs du backend
 🌐 App URLs Configuration:
   Backend: https://adtest-production.up.railway.app
-  Frontend: https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
-  Shopify Extension: https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app
-  Shopify Redirect: https://adtest-3bnygornxu-younes-projects-b6b2fe62.vercel.app/auth/callback
+  Frontend: https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
+  Shopify Extension: https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app
+  Shopify Redirect: https://adtest-web-git-main-younes-projects-b6b2fe62.vercel.app/auth/callback
 ```
 
 ### **Vérifier les Variables d'Environnement**
