@@ -48,7 +48,7 @@ export function getBackendUrl(): string {
  * Récupère l'URL de redirection OAuth Shopify
  */
 export function getShopifyRedirectUrl(): string {
-  return `${getFrontendUrl()}/auth/callback`;
+  return `${getBackendUrl()}/oauth/callback`;
 }
 
 /**
