@@ -14,6 +14,7 @@ import { AuthCallback } from '@/pages/AuthCallback';
 import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
 import { DebugOAuth } from '@/pages/DebugOAuth';
+import { DebugSupabase } from '@/pages/DebugSupabase';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
           <Route path="brand" element={<Brand />} />
           <Route path="connect-store" element={<ConnectStore />} />
           <Route path="debug-oauth" element={<DebugOAuth />} />
+          <Route path="debug-supabase" element={<DebugSupabase />} />
         </Route>
       </Routes>
     </AuthProvider>

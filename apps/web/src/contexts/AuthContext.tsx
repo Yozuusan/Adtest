@@ -28,15 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔍 Fetching user shops for user:', user.id);
       
-      // TODO: TEMPORARY FIX - Skip user_shops table until migration is applied
-      // Check if user_shops table exists first
+      // Test if user_shops table is accessible (migration and RLS policies)
       const { error: checkError } = await supabase
         .from('user_shops')
         .select('count', { count: 'exact', head: true });
       
       if (checkError) {
-        console.warn('⚠️ user_shops table does not exist yet (migration pending):', checkError.message);
-        console.log('📝 Skipping user shops fetch until migration 003_user_shops.sql is applied');
+        console.warn('⚠️ Cannot access user_shops table:', checkError.message);
+        console.log(`   Error code: ${checkError.code}`);
+        console.log(`   Error details: ${checkError.details}`);
+        console.log('📝 This could be due to RLS policies or missing migration');
+        console.log('🔧 Use /debug-supabase to diagnose the issue');
         setUserShops([]);
         return;
       }
