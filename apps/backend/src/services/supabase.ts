@@ -553,6 +553,77 @@ export class SupabaseService {
   }
 
   // ========================================
+  // USER-SHOP ASSOCIATIONS
+  // ========================================
+
+  /**
+   * Créer une association utilisateur-boutique
+   */
+  async createUserShopAssociation(userId: string, shopId: string, role: 'owner' | 'admin' | 'viewer' = 'owner'): Promise<void> {
+    try {
+      const { error } = await this.client
+        .from('user_shops')
+        .insert({
+          user_id: userId,
+          shop_id: shopId,
+          role
+        });
+
+      if (error) {
+        // Si l'association existe déjà, on l'ignore
+        if (error.code === '23505') { // unique_violation
+          console.log(`ℹ️ User-shop association already exists for user ${userId} and shop ${shopId}`);
+          return;
+        }
+        throw error;
+      }
+      
+      console.log(`✅ Created user-shop association: user ${userId} -> shop ${shopId} (${role})`);
+    } catch (error) {
+      console.error('❌ Error creating user-shop association:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer les boutiques d'un utilisateur
+   */
+  async getUserShops(userId: string): Promise<any[]> {
+    try {
+      const { data, error } = await this.client
+        .from('user_shops')
+        .select(`
+          id,
+          user_id,
+          shop_id,
+          role,
+          created_at,
+          updated_at,
+          shop:shops!inner (
+            id,
+            shop_domain,
+            shop_owner,
+            email,
+            country_code,
+            currency,
+            timezone,
+            created_at,
+            updated_at,
+            is_active
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('shop.is_active', true);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error getting user shops:', error);
+      return [];
+    }
+  }
+
+  // ========================================
   // UTILITAIRES
   // ========================================
 

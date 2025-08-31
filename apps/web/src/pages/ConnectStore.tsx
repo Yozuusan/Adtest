@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function ConnectStore() {
   const [shop, setShop] = useState('');
+  const { user } = useAuth();
   const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
   const handleConnect = () => {
-    if (!shop) return;
+    if (!shop || !user) return;
     const normalized = shop.endsWith('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    window.location.href = `${apiUrl}/oauth/install?shop=${encodeURIComponent(normalized)}`;
+    window.location.href = `${apiUrl}/oauth/install?shop=${encodeURIComponent(normalized)}&user_id=${user.id}`;
   };
 
   return (

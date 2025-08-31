@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useVariantStore } from '@/stores/useVariantStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setCurrentShop } = useVariantStore();
+  const { fetchUserShops } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
 
@@ -25,14 +25,17 @@ export function AuthCallback() {
 
         if (success && shop && token) {
           setStatus('success');
-          setMessage('Authentification Shopify réussie !');
+          setMessage(`Successfully connected to ${shop}!`);
           
-          // Stocker le shop dans le store
-          setCurrentShop(shop);
+          // Actualiser la liste des boutiques de l'utilisateur
+          await fetchUserShops();
           
-          // Rediriger vers la page Overview après 2 secondes
+          // Stocker le shop domain pour compatibilité
+          localStorage.setItem('shopDomain', shop);
+          
+          // Rediriger vers le dashboard après 2 secondes
           setTimeout(() => {
-            navigate('/overview');
+            navigate('/');
           }, 2000);
         } else {
           setStatus('error');
@@ -45,7 +48,7 @@ export function AuthCallback() {
     };
 
     handleCallback();
-  }, [searchParams, navigate, setCurrentShop]);
+  }, [searchParams, navigate, fetchUserShops]);
 
   if (status === 'loading') {
     return (

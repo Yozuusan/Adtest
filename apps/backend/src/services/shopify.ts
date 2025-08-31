@@ -103,7 +103,7 @@ export class ShopifyService {
   /**
    * Génère l'URL d'installation OAuth
    */
-  generateInstallUrl(shop: string, scopes: string[] = ['read_products', 'write_products']): string {
+  generateInstallUrl(shop: string, userId?: string, scopes: string[] = ['read_products', 'write_products']): string {
     const scope = scopes.join(',');
     
     // 🔧 FIX: Utiliser la configuration centralisée des URLs
@@ -111,11 +111,14 @@ export class ShopifyService {
     
     console.log(`🔗 OAuth redirect_uri: ${redirectUri}`);
     
+    // Utiliser le userId comme state si fourni, sinon générer un state random
+    const state = userId || this.generateState(shop);
+    
     const params = new URLSearchParams({
       client_id: this.apiKey,
       scope,
       redirect_uri: redirectUri,
-      state: this.generateState(shop)
+      state
     });
 
     return `https://${shop}/admin/oauth/authorize?${params.toString()}`;

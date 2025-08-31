@@ -4,6 +4,7 @@ import { getShopToken } from '../services/tokens';
 import { normalizeShopDomain } from '../utils/shop';
 import { createError } from '../middleware/errorHandler';
 import { getFrontendUrl as getConfigFrontendUrl } from '../config/urls';
+import { supabaseService } from '../services/supabase';
 
 const router = Router();
 
@@ -51,10 +52,14 @@ function detectFrontendUrl(req: any): string {
  */
 router.get('/install', async (req, res, next) => {
   try {
-    const { shop } = req.query;
+    const { shop, user_id } = req.query;
     
     if (!shop || typeof shop !== 'string') {
       throw createError('Shop parameter is required', 400);
+    }
+
+    if (!user_id || typeof user_id !== 'string') {
+      throw createError('User ID parameter is required', 400);
     }
 
     // Valider le format du shop
@@ -62,10 +67,10 @@ router.get('/install', async (req, res, next) => {
       throw createError('Invalid shop format. Must be: your-store.myshopify.com', 400);
     }
 
-    // Générer l'URL d'installation
-    const installUrl = shopifyService.generateInstallUrl(shop);
+    // Générer l'URL d'installation avec le user_id dans le state
+    const installUrl = shopifyService.generateInstallUrl(shop, user_id);
     
-    console.log(`🔗 Redirecting ${shop} to Shopify OAuth: ${installUrl}`);
+    console.log(`🔗 Redirecting ${shop} to Shopify OAuth: ${installUrl} (user: ${user_id})`);
     
     // Rediriger vers Shopify
     res.redirect(installUrl);
@@ -119,18 +124,33 @@ router.get('/callback', async (req, res, next) => {
       throw createError('Missing required OAuth parameters', 400);
     }
 
-    if (typeof shop !== 'string' || typeof code !== 'string') {
+    if (typeof shop !== 'string' || typeof code !== 'string' || typeof state !== 'string') {
       throw createError('Invalid parameter types', 400);
     }
 
-    console.log(`🔄 Processing OAuth callback for shop: ${shop}`);
+    // Extraire le user_id du state (assumant qu'il est passé comme state)
+    const userId = state;
+    console.log(`🔄 Processing OAuth callback for shop: ${shop}, user: ${userId}`);
 
     // Échanger le code contre un token
     const token = await shopifyService.exchangeCodeForToken(code, shop);
     
     console.log(`✅ OAuth successful for ${shop}. Scopes: ${token.scope}`);
 
-    // 🔧 FIX: Redirection directe vers le frontend Vercel
+    // Créer ou mettre à jour la boutique dans Supabase
+    const shopData = await supabaseService.upsertShop({
+      shop_domain: shop,
+      access_token: token.access_token,
+      scope: token.scope,
+      is_active: true
+    });
+
+    console.log(`✅ Shop upserted in Supabase: ${shopData.id}`);
+
+    // Créer l'association utilisateur-boutique
+    await supabaseService.createUserShopAssociation(userId, shopData.id, 'owner');
+
+    // Redirection vers le frontend
     const frontendUrl = detectFrontendUrl(req);
     
     console.log(`🎯 Redirecting to frontend: ${frontendUrl}`);
