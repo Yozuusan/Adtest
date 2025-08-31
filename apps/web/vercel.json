@@ -11,6 +11,8 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "https://adtest-production.up.railway.app"
+    "VITE_API_URL": "https://adtest-production.up.railway.app",
+    "VITE_SUPABASE_URL": "https://hyglnwkdthdewhqeqqss.supabase.co",
+    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2xud2tkdGhkZXdocWVxcXNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjYyMzQsImV4cCI6MjA3MDIwMjIzNH0.uOfeGxOk9oXul9u_EbnArCaIDnPJ-UBquFQeb9Z9m2M"
   }
 }
