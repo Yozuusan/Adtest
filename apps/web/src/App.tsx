@@ -13,6 +13,7 @@ import { ConnectStore } from '@/pages/ConnectStore';
 import { AuthCallback } from '@/pages/AuthCallback';
 import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
+import { DebugOAuth } from '@/pages/DebugOAuth';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="brand" element={<Brand />} />
           <Route path="connect-store" element={<ConnectStore />} />
+          <Route path="debug-oauth" element={<DebugOAuth />} />
         </Route>
       </Routes>
     </AuthProvider>

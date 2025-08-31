@@ -52,29 +52,51 @@ function detectFrontendUrl(req: any): string {
  */
 router.get('/install', async (req, res, next) => {
   try {
+    console.log('🚀 =========================== OAUTH INSTALL START ===========================');
+    console.log('📋 Full request details:');
+    console.log('   URL:', req.url);
+    console.log('   Method:', req.method);
+    console.log('   Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('   Query params:', JSON.stringify(req.query, null, 2));
+    
     const { shop, user_id } = req.query;
     
+    console.log('🔍 Parameter validation:');
+    console.log('   shop:', shop, typeof shop);
+    console.log('   user_id:', user_id, typeof user_id);
+    
     if (!shop || typeof shop !== 'string') {
+      console.log('❌ Shop parameter validation failed');
       throw createError('Shop parameter is required', 400);
     }
 
     if (!user_id || typeof user_id !== 'string') {
+      console.log('❌ User ID parameter validation failed');
       throw createError('User ID parameter is required', 400);
     }
 
     // Valider le format du shop
-    if (!shop.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/)) {
+    const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
+    console.log(`🔍 Shop format validation: ${shop} matches ${shopRegex} = ${shop.match(shopRegex)}`);
+    
+    if (!shop.match(shopRegex)) {
+      console.log('❌ Shop format validation failed');
       throw createError('Invalid shop format. Must be: your-store.myshopify.com', 400);
     }
+
+    console.log('✅ All validations passed, generating install URL...');
 
     // Générer l'URL d'installation avec le user_id dans le state
     const installUrl = shopifyService.generateInstallUrl(shop, user_id);
     
-    console.log(`🔗 Redirecting ${shop} to Shopify OAuth: ${installUrl} (user: ${user_id})`);
+    console.log(`🔗 Generated OAuth URL: ${installUrl}`);
+    console.log(`🔗 Redirecting ${shop} to Shopify OAuth (user: ${user_id})`);
+    console.log('🚀 =========================== OAUTH INSTALL END ===========================');
     
     // Rediriger vers Shopify
     res.redirect(installUrl);
   } catch (error) {
+    console.error('❌ OAUTH INSTALL ERROR:', error);
     next(error);
   }
 });
@@ -114,17 +136,33 @@ router.get('/success', async (req, res, next) => {
  */
 router.get('/callback', async (req, res, next) => {
   try {
-    console.log('🔍 OAuth callback - Query params:', req.query);
-    console.log('🔍 OAuth callback - Full URL:', req.url);
+    console.log('🔄 =========================== OAUTH CALLBACK START ===========================');
+    console.log('📋 Full callback request details:');
+    console.log('   URL:', req.url);
+    console.log('   Method:', req.method);
+    console.log('   Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('   Query params:', JSON.stringify(req.query, null, 2));
     
     const { code, shop, state } = req.query;
     
+    console.log('🔍 Parameter extraction:');
+    console.log('   code:', code ? `Present (${code.toString().substring(0, 10)}...)` : 'Missing');
+    console.log('   shop:', shop);
+    console.log('   state:', state);
+    
     if (!code || !shop || !state) {
-      console.log('❌ Missing params:', { code: !!code, shop: !!shop, state: !!state });
+      console.log('❌ Missing required parameters:');
+      console.log(`   code: ${!!code}`);
+      console.log(`   shop: ${!!shop}`);
+      console.log(`   state: ${!!state}`);
       throw createError('Missing required OAuth parameters', 400);
     }
 
     if (typeof shop !== 'string' || typeof code !== 'string' || typeof state !== 'string') {
+      console.log('❌ Invalid parameter types:');
+      console.log(`   shop type: ${typeof shop}`);
+      console.log(`   code type: ${typeof code}`);
+      console.log(`   state type: ${typeof state}`);
       throw createError('Invalid parameter types', 400);
     }
 
@@ -132,11 +170,15 @@ router.get('/callback', async (req, res, next) => {
     const userId = state;
     console.log(`🔄 Processing OAuth callback for shop: ${shop}, user: ${userId}`);
 
+    console.log('🔄 Step 1: Exchange code for token...');
     // Échanger le code contre un token
     const token = await shopifyService.exchangeCodeForToken(code, shop);
     
-    console.log(`✅ OAuth successful for ${shop}. Scopes: ${token.scope}`);
+    console.log(`✅ Step 1 completed - OAuth successful for ${shop}`);
+    console.log(`   Scopes: ${token.scope}`);
+    console.log(`   Token: ${token.access_token.substring(0, 10)}...`);
 
+    console.log('🔄 Step 2: Upsert shop in Supabase...');
     // Créer ou mettre à jour la boutique dans Supabase
     const shopData = await supabaseService.upsertShop({
       shop_domain: shop,
@@ -145,28 +187,46 @@ router.get('/callback', async (req, res, next) => {
       is_active: true
     });
 
-    console.log(`✅ Shop upserted in Supabase: ${shopData.id}`);
+    console.log(`✅ Step 2 completed - Shop upserted in Supabase:`);
+    console.log(`   Shop ID: ${shopData.id}`);
+    console.log(`   Shop Domain: ${shopData.shop_domain}`);
 
+    console.log('🔄 Step 3: Create user-shop association...');
     // Créer l'association utilisateur-boutique
     await supabaseService.createUserShopAssociation(userId, shopData.id, 'owner');
+    
+    console.log(`✅ Step 3 completed - User-shop association created`);
 
+    console.log('🔄 Step 4: Prepare frontend redirect...');
     // Redirection vers le frontend
     const frontendUrl = detectFrontendUrl(req);
     
-    console.log(`🎯 Redirecting to frontend: ${frontendUrl}`);
+    console.log(`🎯 Frontend URL detected: ${frontendUrl}`);
     
     // Rediriger vers la page de succès avec les params
-    const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token.access_token}`;
+    const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token.access_token.substring(0, 10)}...`;
     
-    res.redirect(successUrl);
+    console.log(`🎯 Redirecting to success page: ${successUrl}`);
+    console.log('✅ =========================== OAUTH CALLBACK SUCCESS ===========================');
+    
+    res.redirect(`${frontendUrl}/auth/callback?shop=${shop}&success=true&token=${token.access_token}`);
   } catch (error) {
-    console.error('❌ OAuth callback error:', error);
+    console.error('❌ =========================== OAUTH CALLBACK ERROR ===========================');
+    console.error('❌ OAuth callback error details:', error);
+    console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     
     // Détecter l'URL frontend pour l'erreur aussi
     const frontendUrl = detectFrontendUrl(req);
     
+    console.log(`🎯 Redirecting to error page with frontend URL: ${frontendUrl}`);
+    
     // Rediriger vers une page d'erreur
-    const errorUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(errorMessage)}`;
+    
+    console.log(`🎯 Error redirect URL: ${errorUrl}`);
+    console.error('❌ =========================== OAUTH CALLBACK ERROR END ===========================');
+    
     res.redirect(errorUrl);
   }
 });
