@@ -16,6 +16,11 @@ export interface UserShop {
   shop?: Shop;
 }
 
+// Type pour la requête avec relation
+export interface UserShopWithShop extends Omit<UserShop, 'shop'> {
+  shop: Shop;
+}
+
 export interface Shop {
   id: string;
   shop_domain: string;

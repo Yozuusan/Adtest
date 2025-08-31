@@ -1,16 +1,16 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, UserShop } from '@/lib/supabase';
+import { supabase, UserShopWithShop } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  userShops: UserShop[];
-  currentShop: UserShop | null;
+  userShops: UserShopWithShop[];
+  currentShop: UserShopWithShop | null;
   loading: boolean;
   signOut: () => Promise<void>;
   fetchUserShops: () => Promise<void>;
-  setCurrentShop: (shop: UserShop | null) => void;
+  setCurrentShop: (shop: UserShopWithShop | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,8 +18,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userShops, setUserShops] = useState<UserShop[]>([]);
-  const [currentShop, setCurrentShop] = useState<UserShop | null>(null);
+  const [userShops, setUserShops] = useState<UserShopWithShop[]>([]);
+  const [currentShop, setCurrentShop] = useState<UserShopWithShop | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserShops = async () => {
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role,
           created_at,
           updated_at,
-          shop:shops (
+          shop:shops!inner (
             id,
             shop_domain,
             shop_owner,
@@ -55,13 +55,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const shops = data || [];
+      const shops = (data || []) as any;
       setUserShops(shops);
       
       // Set first shop as current if none selected
       if (shops.length > 0 && !currentShop) {
         const savedShopId = localStorage.getItem('currentShopId');
-        const savedShop = savedShopId ? shops.find(s => s.id === savedShopId) : null;
+        const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
         setCurrentShop(savedShop || shops[0]);
       }
     } catch (error) {
@@ -69,11 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSetCurrentShop = (shop: UserShop | null) => {
+  const handleSetCurrentShop = (shop: UserShopWithShop | null) => {
     setCurrentShop(shop);
     if (shop) {
       localStorage.setItem('currentShopId', shop.id);
-      localStorage.setItem('shopDomain', shop.shop?.shop_domain || '');
+      localStorage.setItem('shopDomain', shop.shop.shop_domain || '');
     } else {
       localStorage.removeItem('currentShopId');
       localStorage.removeItem('shopDomain');
