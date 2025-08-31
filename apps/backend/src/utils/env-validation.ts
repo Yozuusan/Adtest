@@ -28,6 +28,7 @@ interface RequiredEnvVars {
   
   // Optional
   SENTRY_DSN?: string;
+  FRONTEND_URL?: string;
 }
 
 export function validateEnvironment(): RequiredEnvVars {
@@ -61,6 +62,10 @@ export function validateEnvironment(): RequiredEnvVars {
   // Vérifier les variables optionnelles
   if (process.env.SENTRY_DSN) {
     env.SENTRY_DSN = process.env.SENTRY_DSN;
+  }
+
+  if (process.env.FRONTEND_URL) {
+    env.FRONTEND_URL = process.env.FRONTEND_URL;
   }
 
   // Valider les formats
