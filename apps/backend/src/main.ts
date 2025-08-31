@@ -33,6 +33,7 @@ import adlignVariantsRoutes from './routes/adlign-variants';
 import productsRoutes from './routes/products';
 import aiVariantsRoutes from './routes/ai-variants';
 import brandRoutes from './routes/brand';
+import userShopsRoutes from './routes/user-shops';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -88,6 +89,7 @@ app.use('/adlign-variants', adlignVariantsRoutes);
 app.use('/products', productsRoutes);
 app.use('/ai-variants', aiVariantsRoutes);
 app.use('/brand', brandRoutes);
+app.use('/user-shops', userShopsRoutes);
 
 // Route API directe pour le micro-kernel (évite les problèmes de routage)
 app.get('/api/variant-data', async (req, res) => {

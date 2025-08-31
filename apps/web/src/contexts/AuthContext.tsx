@@ -26,6 +26,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     try {
+      console.log('🔍 Fetching user shops for user:', user.id);
+      
+      // TODO: TEMPORARY FIX - Skip user_shops table until migration is applied
+      // Check if user_shops table exists first
+      const { error: checkError } = await supabase
+        .from('user_shops')
+        .select('count', { count: 'exact', head: true });
+      
+      if (checkError) {
+        console.warn('⚠️ user_shops table does not exist yet (migration pending):', checkError.message);
+        console.log('📝 Skipping user shops fetch until migration 003_user_shops.sql is applied');
+        setUserShops([]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('user_shops')
         .select(`
@@ -58,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const shops = (data || []) as any;
       setUserShops(shops);
       
+      console.log(`✅ Fetched ${shops.length} shops for user ${user.id}`);
+      
       // Set first shop as current if none selected
       if (shops.length > 0 && !currentShop) {
         const savedShopId = localStorage.getItem('currentShopId');
@@ -66,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching user shops:', error);
+      console.log('📝 This is likely because migration 003_user_shops.sql has not been applied yet');
     }
   };
 
