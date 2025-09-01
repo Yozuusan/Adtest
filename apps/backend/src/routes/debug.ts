@@ -145,6 +145,83 @@ router.get('/shop', async (req, res) => {
 });
 
 /**
+ * Test simple de l'état de l'authentification
+ * GET /debug/test
+ */
+router.get('/test', async (req, res) => {
+  try {
+    console.log('🔍 Simple authentication test...');
+
+    // 1. Test de connexion Supabase
+    const { data: testData, error: testError } = await supabaseService.getClient()
+      .from('users')
+      .select('count')
+      .limit(1);
+
+    if (testError) {
+      return res.json({
+        status: 'error',
+        message: 'Supabase connection failed',
+        error: testError.message
+      });
+    }
+
+    // 2. Compter les utilisateurs
+    const { count: userCount } = await supabaseService.getClient()
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    // 3. Compter les boutiques
+    const { count: shopCount } = await supabaseService.getClient()
+      .from('shops')
+      .select('*', { count: 'exact', head: true });
+
+    // 4. Compter les associations user-shop
+    const { count: associationCount } = await supabaseService.getClient()
+      .from('user_shops')
+      .select('*', { count: 'exact', head: true });
+
+    // 5. Lister les utilisateurs récents
+    const { data: recentUsers } = await supabaseService.getClient()
+      .from('users')
+      .select('id, email, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // 6. Lister les boutiques récentes
+    const { data: recentShops } = await supabaseService.getClient()
+      .from('shops')
+      .select('id, domain, is_active, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const diagnostic = {
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      counts: {
+        users: userCount,
+        shops: shopCount,
+        user_shop_associations: associationCount
+      },
+      recent_users: recentUsers || [],
+      recent_shops: recentShops || [],
+      message: 'Authentication test completed successfully'
+    };
+
+    console.log(`📊 Test diagnostic: ${userCount} users, ${shopCount} shops, ${associationCount} associations`);
+
+    res.json(diagnostic);
+  } catch (error) {
+    console.error('❌ Test diagnostic error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Test diagnostic failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Liste tous les utilisateurs et leurs boutiques
  * GET /debug/users
  */
