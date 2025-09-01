@@ -62,7 +62,7 @@ router.get('/shop', async (req, res) => {
         });
         
         if (response.ok) {
-          const shopData = await response.json();
+          const shopData = await response.json() as { shop: { name: string; email: string; domain: string; plan_name: string } };
           shopifyTest = {
             success: true,
             shop_name: shopData.shop.name,
