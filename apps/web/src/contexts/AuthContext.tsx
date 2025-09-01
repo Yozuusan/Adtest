@@ -69,6 +69,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching user shops:', error);
+        console.log('🔧 Trying alternative query without inner join...');
+        
+        // Fallback: essayer sans inner join
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('user_shops')
+          .select(`
+            id,
+            user_id,
+            shop_id,
+            role,
+            created_at,
+            updated_at,
+            shop:shops (
+              id,
+              domain,
+              shop_owner,
+              email,
+              country_code,
+              currency,
+              timezone,
+              created_at,
+              updated_at,
+              is_active
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          setUserShops([]);
+          return;
+        }
+
+        const shops = (fallbackData || []) as any;
+        setUserShops(shops);
+        console.log(`✅ Fallback: Fetched ${shops.length} shops for user ${user.id}`);
+        
+        // Set first shop as current if none selected
+        if (shops.length > 0 && !currentShop) {
+          const savedShopId = localStorage.getItem('currentShopId');
+          const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
+          setCurrentShop(savedShop || shops[0]);
+        }
         return;
       }
 
@@ -76,12 +119,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserShops(shops);
       
       console.log(`✅ Fetched ${shops.length} shops for user ${user.id}`);
+      console.log('📋 Shops data:', shops.map((s: any) => ({
+        id: s.id,
+        shop_id: s.shop_id,
+        role: s.role,
+        shop_domain: s.shop?.domain,
+        shop_active: s.shop?.is_active
+      })));
       
       // Set first shop as current if none selected
       if (shops.length > 0 && !currentShop) {
         const savedShopId = localStorage.getItem('currentShopId');
         const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
         setCurrentShop(savedShop || shops[0]);
+        console.log('🎯 Set current shop:', savedShop || shops[0]);
       }
     } catch (error) {
       console.error('Error fetching user shops:', error);

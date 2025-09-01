@@ -15,11 +15,32 @@ interface ProductSelectorProps {
 export function ProductSelector({ selectedProduct, onProductSelect }: ProductSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const { products, isLoading, error, fetchProducts } = useVariantStore();
-  const { currentShop } = useAuth();
+  const { currentShop, userShops, loading } = useAuth();
+
+  // Debug logging
+  console.log('🔍 ProductSelector debug:', {
+    currentShop: currentShop ? {
+      id: currentShop.id,
+      shop_id: currentShop.shop_id,
+      role: currentShop.role,
+      shop_domain: currentShop.shop?.domain,
+      shop_active: currentShop.shop?.is_active
+    } : null,
+    userShopsCount: userShops.length,
+    loading,
+    productsCount: products.length,
+    isLoading,
+    error,
+    hasShopDomain: !!currentShop?.shop?.domain
+  });
 
   useEffect(() => {
     // Use currentShop from AuthContext
-    if (!currentShop?.shop?.domain) return;
+    if (!currentShop?.shop?.domain) {
+      console.log('⚠️ No shop domain available for product fetching');
+      return;
+    }
+    console.log('🔄 Fetching products for:', currentShop.shop.domain);
     fetchProducts(currentShop.shop.domain, searchTerm);
   }, [currentShop?.shop?.domain, searchTerm, fetchProducts]);
 

@@ -30,7 +30,17 @@ class ApiService {
     const params = new URLSearchParams({ shop, limit: limit.toString() });
     if (search) params.append('search', search);
     
-    return this.request(`/products?${params.toString()}`);
+    console.log('🔄 API.getProducts called:', { shop, search, limit });
+    console.log('🔗 API URL:', `${API_BASE_URL}/products?${params.toString()}`);
+    
+    try {
+      const result = await this.request(`/products?${params.toString()}`);
+      console.log('✅ API.getProducts success:', { count: result.data?.products?.length || 0 });
+      return result.data?.products || [];
+    } catch (error) {
+      console.error('❌ API.getProducts error:', error);
+      throw error;
+    }
   }
 
   async getProduct(productId: string, shop: string): Promise<any> {

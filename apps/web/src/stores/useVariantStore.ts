@@ -64,10 +64,13 @@ export const useVariantStore = create<VariantStore>((set, get) => ({
   // API Actions
   fetchProducts: async (shop: string, search?: string) => {
     try {
+      console.log('🔄 useVariantStore.fetchProducts called with:', { shop, search });
       set({ isLoading: true, error: null });
       const products = await apiService.getProducts(shop, search);
+      console.log('✅ Products fetched successfully:', { count: products.length, products });
       set({ products, isLoading: false });
     } catch (error) {
+      console.error('❌ Error fetching products:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch products',
         isLoading: false 

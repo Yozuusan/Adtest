@@ -22,15 +22,32 @@ export function Brand() {
   const [analysis, setAnalysis] = useState<BrandAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customBrandInfo, setCustomBrandInfo] = useState('');
-  const { currentShop } = useAuth();
+  const { currentShop, userShops, loading } = useAuth();
   const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+
+  // Debug logging
+  console.log('🔍 Brand page debug:', {
+    currentShop: currentShop ? {
+      id: currentShop.id,
+      shop_id: currentShop.shop_id,
+      role: currentShop.role,
+      shop_domain: currentShop.shop?.domain,
+      shop_active: currentShop.shop?.is_active
+    } : null,
+    userShopsCount: userShops.length,
+    loading,
+    hasShopDomain: !!currentShop?.shop?.domain
+  });
 
   useEffect(() => {
     if (currentShop?.shop?.domain) {
+      console.log('🔄 Fetching brand analysis for:', currentShop.shop.domain);
       fetch(`${apiUrl}/brand/analysis?shop=${currentShop.shop.domain}`)
         .then((res) => (res.ok ? res.json() : Promise.reject()))
         .then((data) => setAnalysis(data.data?.ai_analysis || null))
         .catch(() => setAnalysis(null));
+    } else {
+      console.log('⚠️ No shop domain available for brand analysis');
     }
   }, [currentShop?.shop?.domain, apiUrl]);
 
