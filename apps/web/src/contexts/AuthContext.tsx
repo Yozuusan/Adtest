@@ -78,88 +78,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔍 Fetching user shops for user:', user.id);
       
-      // Utiliser une requête plus explicite pour récupérer les relations
+      // Utiliser une requête simple d'abord, puis enrichir avec les données de shop
       console.log('🔍 Executing Supabase query for user:', user.id);
       
-      const { data, error } = await supabase
+      // 1. Récupérer les associations user_shops
+      const { data: userShopsData, error: userShopsError } = await supabase
         .from('user_shops')
-        .select(`
-          id,
-          user_id,
-          shop_id,
-          role,
-          created_at,
-          updated_at,
-          shop:shops (
-            id,
-            domain,
-            shop_owner,
-            email,
-            country_code,
-            currency,
-            timezone,
-            created_at,
-            updated_at,
-            is_active
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('❌ Error fetching user shops:', error);
-        console.log('🔧 Error details:', {
-          message: error.message,
-          code: error.code,
-          details: error.details
-        });
-        
-        // Essayer une requête encore plus simple
-        const { error: simpleError } = await supabase
-          .from('user_shops')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (simpleError) {
-          console.error('❌ Simple query also failed:', simpleError);
-          setUserShops([]);
-          return;
-        }
-
-        console.log('✅ Simple query successful, but no shop details');
+      if (userShopsError) {
+        console.error('❌ Error fetching user_shops:', userShopsError);
         setUserShops([]);
         return;
       }
 
-      const shops = (data || []) as any;
-      console.log(`✅ Successfully fetched ${shops.length} shops for user ${user.id}`);
-      console.log('📋 Shops data:', shops.map((s: any) => ({
-        id: s.id,
-        shop_id: s.shop_id,
-        role: s.role,
-        shop_domain: s.shop?.domain,
-        shop_active: s.shop?.is_active,
-        shop_object: s.shop
-      })));
-      
-      // Vérifier si les données ont la bonne structure
-      const validShops = shops.filter((s: any) => s.shop && s.shop.domain);
-      console.log(`🔍 Valid shops with domain: ${validShops.length}/${shops.length}`);
-      
-      if (validShops.length === 0 && shops.length > 0) {
-        console.warn('⚠️ All shops have null shop object, this might be a data structure issue');
-        console.log('🔍 First shop structure:', shops[0]);
-      }
-      
-      setUserShops(shops);
-      
-      // Set first shop as current if none selected
-      if (shops.length > 0 && !currentShop) {
-        const savedShopId = localStorage.getItem('currentShopId');
-        const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
-        const shopToSet = savedShop || shops[0];
-        setCurrentShop(shopToSet);
-        console.log('🎯 Set current shop:', shopToSet);
-        console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
+      console.log('📋 User shops data:', userShopsData);
+
+      // 2. Récupérer les données des shops correspondants
+      if (userShopsData && userShopsData.length > 0) {
+        const shopIds = userShopsData.map(us => us.shop_id);
+        console.log('🔍 Fetching shops with IDs:', shopIds);
+        
+        const { data: shopsData, error: shopsError } = await supabase
+          .from('shops')
+          .select('*')
+          .in('id', shopIds);
+
+        if (shopsError) {
+          console.error('❌ Error fetching shops:', shopsError);
+          setUserShops([]);
+          return;
+        }
+
+        console.log('📋 Shops data:', shopsData);
+
+        // 3. Combiner les données
+        const enrichedShops = userShopsData.map(userShop => {
+          const shop = shopsData?.find(s => s.id === userShop.shop_id);
+          return {
+            ...userShop,
+            shop: shop || null
+          };
+        });
+
+        console.log('🔗 Enriched shops:', enrichedShops);
+        
+        setUserShops(enrichedShops);
+        
+        // Set first shop as current if none selected
+        if (enrichedShops.length > 0 && !currentShop) {
+          const savedShopId = localStorage.getItem('currentShopId');
+          const savedShop = savedShopId ? enrichedShops.find(s => s.id === savedShopId) : null;
+          const shopToSet = savedShop || enrichedShops[0];
+          setCurrentShop(shopToSet);
+          console.log('🎯 Set current shop:', shopToSet);
+          console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
+        }
+      } else {
+        setUserShops([]);
       }
     } catch (error) {
       console.error('❌ Error fetching user shops:', error);
