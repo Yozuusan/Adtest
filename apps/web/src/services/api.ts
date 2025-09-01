@@ -34,7 +34,7 @@ class ApiService {
     console.log('🔗 API URL:', `${API_BASE_URL}/products?${params.toString()}`);
     
     try {
-      const result = await this.request(`/products?${params.toString()}`);
+      const result = await this.request(`/products?${params.toString()}`) as { data?: { products?: any[] } };
       console.log('✅ API.getProducts success:', { count: result.data?.products?.length || 0 });
       return result.data?.products || [];
     } catch (error) {
