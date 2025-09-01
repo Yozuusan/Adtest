@@ -145,6 +145,97 @@ router.get('/shop', async (req, res) => {
 });
 
 /**
+ * Liste tous les utilisateurs et leurs boutiques
+ * GET /debug/users
+ */
+router.get('/users', async (req, res) => {
+  try {
+    console.log('🔍 Listing all users and their shops...');
+
+    // 1. Récupérer tous les utilisateurs
+    const { data: users, error: usersError } = await supabaseService.getClient()
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (usersError) {
+      console.error('❌ Error fetching users:', usersError);
+      return res.status(500).json({
+        error: 'Failed to fetch users',
+        message: usersError.message
+      });
+    }
+
+    // 2. Récupérer toutes les associations user-shop
+    const { data: userShops, error: userShopsError } = await supabaseService.getClient()
+      .from('user_shops')
+      .select(`
+        id,
+        user_id,
+        shop_id,
+        role,
+        created_at,
+        updated_at,
+        shop:shops (
+          id,
+          domain,
+          is_active,
+          created_at,
+          updated_at
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (userShopsError) {
+      console.error('❌ Error fetching user shops:', userShopsError);
+      return res.status(500).json({
+        error: 'Failed to fetch user shops',
+        message: userShopsError.message
+      });
+    }
+
+    // 3. Organiser les données par utilisateur
+    const usersWithShops = users.map((user: any) => {
+      const userShopAssociations = userShops.filter((us: any) => us.user_id === user.id);
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        },
+        shops: userShopAssociations.map((us: any) => ({
+          association_id: us.id,
+          shop_id: us.shop_id,
+          role: us.role,
+          domain: us.shop?.domain,
+          is_active: us.shop?.is_active,
+          shop_created_at: us.shop?.created_at,
+          association_created_at: us.created_at
+        }))
+      };
+    });
+
+    const diagnostic = {
+      timestamp: new Date().toISOString(),
+      total_users: users.length,
+      total_user_shop_associations: userShops.length,
+      users: usersWithShops
+    };
+
+    console.log(`📊 Users diagnostic: ${users.length} users, ${userShops.length} associations`);
+
+    res.json(diagnostic);
+  } catch (error) {
+    console.error('❌ Users diagnostic error:', error);
+    res.status(500).json({
+      error: 'Users diagnostic failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Diagnostic d'authentification pour un utilisateur
  * GET /debug/auth?user_id=user_uuid
  */
