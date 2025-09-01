@@ -154,7 +154,7 @@ router.get('/test', async (req, res) => {
 
     // 1. Test de connexion Supabase
     const { data: testData, error: testError } = await supabaseService.getClient()
-      .from('users')
+      .from('user_shops')
       .select('count')
       .limit(1);
 
@@ -166,10 +166,13 @@ router.get('/test', async (req, res) => {
       });
     }
 
-    // 2. Compter les utilisateurs
-    const { count: userCount } = await supabaseService.getClient()
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    // 2. Compter les utilisateurs uniques
+    const { data: uniqueUsers, error: usersError } = await supabaseService.getClient()
+      .from('user_shops')
+      .select('user_id')
+      .limit(1000);
+
+    const userCount = uniqueUsers ? new Set(uniqueUsers.map(u => u.user_id)).size : 0;
 
     // 3. Compter les boutiques
     const { count: shopCount } = await supabaseService.getClient()
@@ -182,11 +185,16 @@ router.get('/test', async (req, res) => {
       .select('*', { count: 'exact', head: true });
 
     // 5. Lister les utilisateurs récents
-    const { data: recentUsers } = await supabaseService.getClient()
-      .from('users')
-      .select('id, email, created_at')
+    const { data: recentUserShops } = await supabaseService.getClient()
+      .from('user_shops')
+      .select('user_id, created_at')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(10);
+
+    const recentUsers = recentUserShops ? recentUserShops.map(us => ({
+      id: us.user_id,
+      created_at: us.created_at
+    })) : [];
 
     // 6. Lister les boutiques récentes
     const { data: recentShops } = await supabaseService.getClient()
@@ -229,22 +237,30 @@ router.get('/users', async (req, res) => {
   try {
     console.log('🔍 Listing all users and their shops...');
 
-    // 1. Récupérer tous les utilisateurs
-    const { data: users, error: usersError } = await supabaseService.getClient()
-      .from('users')
-      .select('*')
+    // 1. Récupérer tous les utilisateurs uniques depuis user_shops
+    const { data: userShops, error: userShopsError } = await supabaseService.getClient()
+      .from('user_shops')
+      .select('user_id, created_at')
       .order('created_at', { ascending: false });
 
-    if (usersError) {
-      console.error('❌ Error fetching users:', usersError);
+    if (userShopsError) {
+      console.error('❌ Error fetching user shops:', userShopsError);
       return res.status(500).json({
-        error: 'Failed to fetch users',
-        message: usersError.message
+        error: 'Failed to fetch user shops',
+        message: userShopsError.message
       });
     }
 
-    // 2. Récupérer toutes les associations user-shop
-    const { data: userShops, error: userShopsError } = await supabaseService.getClient()
+    // Extraire les utilisateurs uniques
+    const uniqueUsers = userShops ? Array.from(new Set(userShops.map(us => us.user_id))).map(userId => ({
+      id: userId,
+      created_at: userShops.find(us => us.user_id === userId)?.created_at
+    })) : [];
+
+
+
+    // 2. Récupérer toutes les associations user-shop avec les détails des boutiques
+    const { data: allUserShops, error: allUserShopsError } = await supabaseService.getClient()
       .from('user_shops')
       .select(`
         id,
@@ -263,23 +279,21 @@ router.get('/users', async (req, res) => {
       `)
       .order('created_at', { ascending: false });
 
-    if (userShopsError) {
-      console.error('❌ Error fetching user shops:', userShopsError);
+    if (allUserShopsError) {
+      console.error('❌ Error fetching all user shops:', allUserShopsError);
       return res.status(500).json({
-        error: 'Failed to fetch user shops',
-        message: userShopsError.message
+        error: 'Failed to fetch all user shops',
+        message: allUserShopsError.message
       });
     }
 
     // 3. Organiser les données par utilisateur
-    const usersWithShops = users.map((user: any) => {
-      const userShopAssociations = userShops.filter((us: any) => us.user_id === user.id);
+    const usersWithShops = uniqueUsers.map((user: any) => {
+      const userShopAssociations = allUserShops.filter((us: any) => us.user_id === user.id);
       return {
         user: {
           id: user.id,
-          email: user.email,
-          created_at: user.created_at,
-          updated_at: user.updated_at
+          created_at: user.created_at
         },
         shops: userShopAssociations.map((us: any) => ({
           association_id: us.id,
@@ -295,12 +309,12 @@ router.get('/users', async (req, res) => {
 
     const diagnostic = {
       timestamp: new Date().toISOString(),
-      total_users: users.length,
-      total_user_shop_associations: userShops.length,
+      total_users: uniqueUsers.length,
+      total_user_shop_associations: allUserShops.length,
       users: usersWithShops
     };
 
-    console.log(`📊 Users diagnostic: ${users.length} users, ${userShops.length} associations`);
+    console.log(`📊 Users diagnostic: ${uniqueUsers.length} users, ${allUserShops.length} associations`);
 
     res.json(diagnostic);
   } catch (error) {
