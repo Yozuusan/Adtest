@@ -339,15 +339,17 @@ router.get('/auth', async (req, res) => {
 
     console.log(`🔍 Diagnostic d'authentification pour user: ${user_id}`);
 
-    // 1. Vérifier l'utilisateur dans Supabase
-    const { data: user, error: userError } = await supabaseService.getClient()
-      .from('users')
-      .select('*')
-      .eq('id', user_id)
-      .single();
-
-    // 2. Vérifier les associations user-shop
+    // 1. Vérifier si l'utilisateur a des associations de boutiques
     const { data: userShops, error: userShopsError } = await supabaseService.getClient()
+      .from('user_shops')
+      .select('user_id')
+      .eq('user_id', user_id)
+      .limit(1);
+
+    const userExists = userShops && userShops.length > 0;
+
+    // 2. Vérifier toutes les associations user-shop
+    const { data: allUserShops, error: allUserShopsError } = await supabaseService.getClient()
       .from('user_shops')
       .select(`
         id,
@@ -368,8 +370,8 @@ router.get('/auth', async (req, res) => {
 
     // 3. Tester les tokens pour chaque shop
     const shopsWithTokens = [];
-    if (userShops && !userShopsError) {
-      for (const userShop of userShops as any[]) {
+    if (allUserShops && !allUserShopsError) {
+      for (const userShop of allUserShops as any[]) {
         if (userShop.shop?.domain) {
           const token = await getShopToken(userShop.shop.domain);
           shopsWithTokens.push({
@@ -390,31 +392,30 @@ router.get('/auth', async (req, res) => {
       
       // User info
       user: {
-        found: !!user && !userError,
-        error: userError?.message,
-        email: user?.email,
-        created_at: user?.created_at
+        found: userExists,
+        error: userShopsError?.message,
+        user_id: user_id
       },
       
       // User shops
       user_shops: {
-        count: userShops?.length || 0,
-        error: userShopsError?.message,
+        count: allUserShops?.length || 0,
+        error: allUserShopsError?.message,
         shops: shopsWithTokens
       },
       
       // Résumé
       summary: {
-        user_exists: !!user && !userError,
-        has_shops: (userShops?.length || 0) > 0,
+        user_exists: userExists,
+        has_shops: (allUserShops?.length || 0) > 0,
         active_shops: shopsWithTokens.filter(s => s.is_active).length,
         shops_with_tokens: shopsWithTokens.filter(s => s.has_token).length
       }
     };
 
     console.log(`📊 Auth diagnostic for user ${user_id}:`, {
-      user_exists: !!user && !userError,
-      shops_count: userShops?.length || 0,
+      user_exists: userExists,
+      shops_count: allUserShops?.length || 0,
       active_shops: shopsWithTokens.filter(s => s.is_active).length
     });
 
