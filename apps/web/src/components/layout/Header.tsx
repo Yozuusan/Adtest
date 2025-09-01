@@ -59,6 +59,17 @@ export function Header() {
 
         {/* Actions + User Menu */}
         <div className="flex items-center space-x-4">
+          {/* Debug info - temporaire */}
+          <div className="text-xs text-gray-500">
+            {userShops.length > 0 ? `${userShops.length} shop(s)` : 'No shops'}
+            {currentShop && (
+              <span className="ml-2">
+                | Current: {currentShop.shop?.domain || 'No domain'}
+              </span>
+            )}
+          </div>
+          
+
           {location.pathname !== '/variants/new' && currentShop && (
             <Button asChild className="bg-blue-600 hover:bg-blue-700">
               <Link to="/variants/new">

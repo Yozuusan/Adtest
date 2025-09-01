@@ -78,7 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔍 Fetching user shops for user:', user.id);
       
-      // Utiliser une requête plus simple sans inner join pour éviter les problèmes RLS
+      // Utiliser une requête plus explicite pour récupérer les relations
+      console.log('🔍 Executing Supabase query for user:', user.id);
+      
       const { data, error } = await supabase
         .from('user_shops')
         .select(`
@@ -101,8 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             is_active
           )
         `)
-        .eq('user_id', user.id)
-        .eq('shop.is_active', true);
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('❌ Error fetching user shops:', error);
@@ -136,8 +137,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         shop_id: s.shop_id,
         role: s.role,
         shop_domain: s.shop?.domain,
-        shop_active: s.shop?.is_active
+        shop_active: s.shop?.is_active,
+        shop_object: s.shop
       })));
+      
+      // Vérifier si les données ont la bonne structure
+      const validShops = shops.filter((s: any) => s.shop && s.shop.domain);
+      console.log(`🔍 Valid shops with domain: ${validShops.length}/${shops.length}`);
+      
+      if (validShops.length === 0 && shops.length > 0) {
+        console.warn('⚠️ All shops have null shop object, this might be a data structure issue');
+        console.log('🔍 First shop structure:', shops[0]);
+      }
       
       setUserShops(shops);
       
@@ -145,8 +156,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (shops.length > 0 && !currentShop) {
         const savedShopId = localStorage.getItem('currentShopId');
         const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
-        setCurrentShop(savedShop || shops[0]);
-        console.log('🎯 Set current shop:', savedShop || shops[0]);
+        const shopToSet = savedShop || shops[0];
+        setCurrentShop(shopToSet);
+        console.log('🎯 Set current shop:', shopToSet);
+        console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
       }
     } catch (error) {
       console.error('❌ Error fetching user shops:', error);
