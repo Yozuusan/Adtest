@@ -22,29 +22,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentShop, setCurrentShop] = useState<UserShopWithShop | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialiser l'authentification Supabase
+  useEffect(() => {
+    // Récupérer la session initiale
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.id);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        
+        // Si l'utilisateur se connecte, récupérer ses boutiques
+        if (session?.user) {
+          await fetchUserShops();
+        } else {
+          setUserShops([]);
+          setCurrentShop(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const fetchUserShops = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('⚠️ No user available for fetching shops');
+      return;
+    }
 
     try {
       console.log('🔍 Fetching user shops for user:', user.id);
       
-      // Test if user_shops table is accessible (migration and RLS policies)
-      const { error: checkError } = await supabase
-        .from('user_shops')
-        .select('count', { count: 'exact', head: true });
-      
-      if (checkError) {
-        console.warn('⚠️ Cannot access user_shops table:', checkError.message);
-        console.log(`   Error code: ${checkError.code}`);
-        console.log(`   Error details: ${checkError.details}`);
-        console.log('📝 This could be due to RLS policies or missing migration');
-        console.log('🔧 Use /debug-supabase to diagnose the issue');
-        setUserShops([]);
-        return;
-      }
-      
-      console.log('✅ user_shops table is accessible, fetching data...');
-      
+      // Utiliser une requête plus simple sans inner join pour éviter les problèmes RLS
       const { data, error } = await supabase
         .from('user_shops')
         .select(`
@@ -54,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role,
           created_at,
           updated_at,
-          shop:shops!inner (
+          shop:shops (
             id,
             domain,
             shop_owner,
@@ -67,61 +87,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             is_active
           )
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('shop.is_active', true);
 
       if (error) {
         console.error('❌ Error fetching user shops:', error);
-        console.log('🔧 Trying alternative query without inner join...');
+        console.log('🔧 Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        });
         
-        // Fallback: essayer sans inner join
-        const { data: fallbackData, error: fallbackError } = await supabase
+        // Essayer une requête encore plus simple
+        const { error: simpleError } = await supabase
           .from('user_shops')
-          .select(`
-            id,
-            user_id,
-            shop_id,
-            role,
-            created_at,
-            updated_at,
-            shop:shops (
-              id,
-              domain,
-              shop_owner,
-              email,
-              country_code,
-              currency,
-              timezone,
-              created_at,
-              updated_at,
-              is_active
-            )
-          `)
+          .select('*')
           .eq('user_id', user.id);
 
-        if (fallbackError) {
-          console.error('❌ Fallback query also failed:', fallbackError);
+        if (simpleError) {
+          console.error('❌ Simple query also failed:', simpleError);
           setUserShops([]);
           return;
         }
 
-        const shops = (fallbackData || []) as any;
-        console.log('✅ Fallback query successful, shops found:', shops.length);
-        setUserShops(shops);
-        
-        // Set first shop as current if none selected
-        if (shops.length > 0 && !currentShop) {
-          const savedShopId = localStorage.getItem('currentShopId');
-          const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
-          setCurrentShop(savedShop || shops[0]);
-          console.log('🎯 Set current shop from fallback:', savedShop || shops[0]);
-        }
+        console.log('✅ Simple query successful, but no shop details');
+        setUserShops([]);
         return;
       }
 
       const shops = (data || []) as any;
-      setUserShops(shops);
-      
-      console.log(`✅ Main query successful: Fetched ${shops.length} shops for user ${user.id}`);
+      console.log(`✅ Successfully fetched ${shops.length} shops for user ${user.id}`);
       console.log('📋 Shops data:', shops.map((s: any) => ({
         id: s.id,
         shop_id: s.shop_id,
@@ -129,6 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         shop_domain: s.shop?.domain,
         shop_active: s.shop?.is_active
       })));
+      
+      setUserShops(shops);
       
       // Set first shop as current if none selected
       if (shops.length > 0 && !currentShop) {
@@ -163,40 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('currentShopId');
     localStorage.removeItem('shopDomain');
   };
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        if (event === 'SIGNED_OUT') {
-          setUserShops([]);
-          setCurrentShop(null);
-          localStorage.removeItem('currentShopId');
-          localStorage.removeItem('shopDomain');
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Fetch user shops when user is authenticated
-  useEffect(() => {
-    if (user) {
-      fetchUserShops();
-    }
-  }, [user]);
 
   const value = {
     user,

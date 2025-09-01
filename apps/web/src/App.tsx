@@ -15,6 +15,7 @@ import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
 import { DebugOAuth } from '@/pages/DebugOAuth';
 import { DebugSupabase } from '@/pages/DebugSupabase';
+import { DebugAuth } from '@/pages/DebugAuth';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
           <Route path="connect-store" element={<ConnectStore />} />
           <Route path="debug-oauth" element={<DebugOAuth />} />
           <Route path="debug-supabase" element={<DebugSupabase />} />
+          <Route path="debug-auth" element={<DebugAuth />} />
         </Route>
       </Routes>
     </AuthProvider>
