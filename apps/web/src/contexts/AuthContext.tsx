@@ -11,6 +11,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   fetchUserShops: () => Promise<void>;
   setCurrentShop: (shop: UserShopWithShop | null) => void;
+  forceRefreshShops: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,17 +44,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         
         // Si l'utilisateur se connecte, récupérer ses boutiques
-        if (session?.user) {
-          await fetchUserShops();
-        } else {
+        if (session?.user && event === 'SIGNED_IN') {
+          // Attendre un peu pour s'assurer que l'état est mis à jour
+          setTimeout(async () => {
+            await fetchUserShops();
+          }, 100);
+        } else if (event === 'SIGNED_OUT') {
           setUserShops([]);
           setCurrentShop(null);
+          localStorage.removeItem('currentShopId');
+          localStorage.removeItem('shopDomain');
         }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Récupérer les boutiques quand l'utilisateur change
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('👤 User changed, fetching shops for:', user.id);
+      fetchUserShops();
+    }
+  }, [user, loading]);
 
   const fetchUserShops = async () => {
     if (!user) {
@@ -161,6 +175,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('shopDomain');
   };
 
+  const forceRefreshShops = async () => {
+    setLoading(true);
+    await fetchUserShops();
+    setLoading(false);
+  };
+
   const value = {
     user,
     session,
@@ -170,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     fetchUserShops,
     setCurrentShop: handleSetCurrentShop,
+    forceRefreshShops,
   };
 
   return (

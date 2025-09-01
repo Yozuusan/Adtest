@@ -16,14 +16,39 @@ export function AuthCallback() {
         const success = searchParams.get('success');
         const error = searchParams.get('error');
         const token = searchParams.get('token');
+        const alreadyConnected = searchParams.get('already_connected');
+
+        console.log('🔍 AuthCallback parameters:', {
+          shop,
+          success,
+          error,
+          hasToken: !!token,
+          alreadyConnected
+        });
 
         if (error) {
+          console.error('❌ Auth error:', error);
           setStatus('error');
           setMessage(`Erreur d'authentification: ${error}`);
           return;
         }
 
-        if (success && shop && token) {
+        // Si la boutique est déjà connectée, c'est un succès
+        if (alreadyConnected === 'true' && shop) {
+          setStatus('success');
+          setMessage(`Boutique ${shop} déjà connectée !`);
+          
+          // Actualiser la liste des boutiques de l'utilisateur
+          await fetchUserShops();
+          
+          // Rediriger vers le dashboard après 2 secondes
+          setTimeout(() => {
+            navigate('/');
+          }, 2000);
+          return;
+        }
+
+        if (success && shop) {
           setStatus('success');
           setMessage(`Successfully connected to ${shop}!`);
           
@@ -35,10 +60,12 @@ export function AuthCallback() {
             navigate('/');
           }, 2000);
         } else {
+          console.warn('⚠️ Missing authentication parameters:', { shop, success, error });
           setStatus('error');
-          setMessage('Paramètres d\'authentification manquants');
+          setMessage('Paramètres d\'authentification manquants ou invalides');
         }
       } catch (err) {
+        console.error('❌ AuthCallback error:', err);
         setStatus('error');
         setMessage(`Erreur: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
       }
