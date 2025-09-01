@@ -156,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSetCurrentShop = (shop: UserShopWithShop | null) => {
     setCurrentShop(shop);
-    if (shop) {
+    if (shop && shop.shop) {
       localStorage.setItem('currentShopId', shop.id);
       localStorage.setItem('shopDomain', shop.shop.domain || '');
     } else {

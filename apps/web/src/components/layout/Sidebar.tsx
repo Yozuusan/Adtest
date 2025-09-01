@@ -90,7 +90,7 @@ export function Sidebar() {
       <div className="border-t border-gray-200 p-4">
         {currentShop ? (
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">{currentShop.shop.domain}</div>
+            <div className="text-sm text-gray-700">{currentShop.shop?.domain || 'Domaine inconnu'}</div>
             <button
               onClick={disconnect}
               className="text-xs text-red-600 hover:underline"

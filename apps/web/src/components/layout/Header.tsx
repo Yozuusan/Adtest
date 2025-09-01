@@ -48,7 +48,7 @@ export function Header() {
                 <option value="">Select a store...</option>
                 {userShops.map((shop) => (
                   <option key={shop.id} value={shop.id}>
-                    {shop.shop.domain || 'Unknown Store'}
+                    {shop.shop?.domain || 'Unknown Store'}
                   </option>
                 ))}
               </select>
