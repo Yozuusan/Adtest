@@ -84,6 +84,30 @@ router.get('/install', async (req, res, next) => {
       throw createError('Invalid shop format. Must be: your-store.myshopify.com', 400);
     }
 
+    // 🔒 VÉRIFICATION DE SÉCURITÉ : Vérifier si la boutique est déjà connectée par un autre utilisateur
+    console.log('🔒 Security check: Verifying shop ownership...');
+    const existingShop = await supabaseService.getShopByDomain(shop);
+    
+    if (existingShop) {
+      // Vérifier si l'utilisateur actuel a déjà accès à cette boutique
+      const userShops = await supabaseService.getUserShops(user_id);
+      const existingUserShop = userShops.find(us => us.shop_id === existingShop.id);
+      
+      if (existingUserShop) {
+        console.log('✅ User already has access to this shop');
+        // L'utilisateur a déjà accès, rediriger vers le succès
+        const frontendUrl = detectFrontendUrl(req);
+        const successUrl = `${frontendUrl}/auth/callback?shop=${shop}&success=true&already_connected=true`;
+        return res.redirect(successUrl);
+      } else {
+        console.log('⚠️ Shop is already connected by another user');
+        // La boutique est connectée par un autre utilisateur
+        const frontendUrl = detectFrontendUrl(req);
+        const errorUrl = `${frontendUrl}/auth/callback?error=shop_already_connected&shop=${shop}`;
+        return res.redirect(errorUrl);
+      }
+    }
+
     console.log('✅ All validations passed, generating install URL...');
 
     // Générer l'URL d'installation avec le user_id dans le state

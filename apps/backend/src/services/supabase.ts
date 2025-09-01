@@ -651,6 +651,13 @@ export class SupabaseService {
   }
 
   /**
+   * Obtenir le client Supabase (pour les cas spéciaux)
+   */
+  getClient(): SupabaseClient {
+    return this.client;
+  }
+
+  /**
    * Fermer la connexion
    */
   async close(): Promise<void> {

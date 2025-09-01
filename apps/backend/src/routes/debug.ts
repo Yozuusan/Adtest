@@ -144,4 +144,106 @@ router.get('/shop', async (req, res) => {
   }
 });
 
+/**
+ * Diagnostic d'authentification pour un utilisateur
+ * GET /debug/auth?user_id=user_uuid
+ */
+router.get('/auth', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'user_id_required' });
+    }
+
+    console.log(`🔍 Diagnostic d'authentification pour user: ${user_id}`);
+
+    // 1. Vérifier l'utilisateur dans Supabase
+    const { data: user, error: userError } = await supabaseService.getClient()
+      .from('users')
+      .select('*')
+      .eq('id', user_id)
+      .single();
+
+    // 2. Vérifier les associations user-shop
+    const { data: userShops, error: userShopsError } = await supabaseService.getClient()
+      .from('user_shops')
+      .select(`
+        id,
+        user_id,
+        shop_id,
+        role,
+        created_at,
+        updated_at,
+        shop:shops (
+          id,
+          domain,
+          is_active,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('user_id', user_id);
+
+    // 3. Tester les tokens pour chaque shop
+    const shopsWithTokens = [];
+    if (userShops && !userShopsError) {
+      for (const userShop of userShops as any[]) {
+        if (userShop.shop?.domain) {
+          const token = await getShopToken(userShop.shop.domain);
+          shopsWithTokens.push({
+            shop_id: userShop.shop_id,
+            domain: userShop.shop.domain,
+            role: userShop.role,
+            is_active: userShop.shop.is_active,
+            has_token: !!token?.access_token,
+            token_scope: token?.scope
+          });
+        }
+      }
+    }
+
+    const diagnostic = {
+      user_id,
+      timestamp: new Date().toISOString(),
+      
+      // User info
+      user: {
+        found: !!user && !userError,
+        error: userError?.message,
+        email: user?.email,
+        created_at: user?.created_at
+      },
+      
+      // User shops
+      user_shops: {
+        count: userShops?.length || 0,
+        error: userShopsError?.message,
+        shops: shopsWithTokens
+      },
+      
+      // Résumé
+      summary: {
+        user_exists: !!user && !userError,
+        has_shops: (userShops?.length || 0) > 0,
+        active_shops: shopsWithTokens.filter(s => s.is_active).length,
+        shops_with_tokens: shopsWithTokens.filter(s => s.has_token).length
+      }
+    };
+
+    console.log(`📊 Auth diagnostic for user ${user_id}:`, {
+      user_exists: !!user && !userError,
+      shops_count: userShops?.length || 0,
+      active_shops: shopsWithTokens.filter(s => s.is_active).length
+    });
+
+    res.json(diagnostic);
+  } catch (error) {
+    console.error('❌ Auth diagnostic error:', error);
+    res.status(500).json({
+      error: 'Auth diagnostic failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

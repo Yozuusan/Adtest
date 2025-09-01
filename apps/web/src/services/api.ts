@@ -36,9 +36,19 @@ class ApiService {
     try {
       const result = await this.request(`/products?${params.toString()}`) as { data?: { products?: any[] } };
       console.log('✅ API.getProducts success:', { count: result.data?.products?.length || 0 });
-      return result.data?.products || [];
+      
+      if (!result.data?.products) {
+        console.warn('⚠️ No products data in response:', result);
+        return [];
+      }
+      
+      return result.data.products;
     } catch (error) {
       console.error('❌ API.getProducts error:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }

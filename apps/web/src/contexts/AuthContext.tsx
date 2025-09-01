@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      console.log('✅ user_shops table is accessible, fetching data...');
+      
       const { data, error } = await supabase
         .from('user_shops')
         .select(`
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error fetching user shops:', error);
+        console.error('❌ Error fetching user shops:', error);
         console.log('🔧 Trying alternative query without inner join...');
         
         // Fallback: essayer sans inner join
@@ -97,20 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', user.id);
 
         if (fallbackError) {
-          console.error('Fallback query also failed:', fallbackError);
+          console.error('❌ Fallback query also failed:', fallbackError);
           setUserShops([]);
           return;
         }
 
         const shops = (fallbackData || []) as any;
+        console.log('✅ Fallback query successful, shops found:', shops.length);
         setUserShops(shops);
-        console.log(`✅ Fallback: Fetched ${shops.length} shops for user ${user.id}`);
         
         // Set first shop as current if none selected
         if (shops.length > 0 && !currentShop) {
           const savedShopId = localStorage.getItem('currentShopId');
           const savedShop = savedShopId ? shops.find((s: any) => s.id === savedShopId) : null;
           setCurrentShop(savedShop || shops[0]);
+          console.log('🎯 Set current shop from fallback:', savedShop || shops[0]);
         }
         return;
       }
@@ -118,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const shops = (data || []) as any;
       setUserShops(shops);
       
-      console.log(`✅ Fetched ${shops.length} shops for user ${user.id}`);
+      console.log(`✅ Main query successful: Fetched ${shops.length} shops for user ${user.id}`);
       console.log('📋 Shops data:', shops.map((s: any) => ({
         id: s.id,
         shop_id: s.shop_id,
@@ -135,8 +138,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🎯 Set current shop:', savedShop || shops[0]);
       }
     } catch (error) {
-      console.error('Error fetching user shops:', error);
-      console.log('📝 This is likely because migration 003_user_shops.sql has not been applied yet');
+      console.error('❌ Error fetching user shops:', error);
+      setUserShops([]);
     }
   };
 
