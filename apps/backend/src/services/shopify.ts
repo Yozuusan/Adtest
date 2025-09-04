@@ -644,6 +644,110 @@ export class ShopifyService {
   }
 
   /**
+   * Ensure metaobject definition exists
+   */
+  async ensureMetaobjectDefinition(shop: string): Promise<boolean> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) {
+        return false;
+      }
+
+      // Vérifier si la définition existe déjà
+      const checkQuery = `
+        query {
+          metaobjectDefinitions(first: 10) {
+            edges {
+              node {
+                id
+                type
+                name
+              }
+            }
+          }
+        }
+      `;
+
+      const checkResponse = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query: checkQuery }),
+      });
+
+      const checkResult = await checkResponse.json() as any;
+      const definitions = checkResult.data?.metaobjectDefinitions?.edges || [];
+      const existingDef = definitions.find((def: any) => def.node.type === 'adlign_variant');
+
+      if (existingDef) {
+        console.log('✅ Metaobject definition adlign_variant already exists');
+        return true;
+      }
+
+      // Créer la définition si elle n'existe pas
+      const createMutation = `
+        mutation metaobjectDefinitionCreate($definition: MetaobjectDefinitionCreateInput!) {
+          metaobjectDefinitionCreate(definition: $definition) {
+            metaobjectDefinition {
+              id
+              type
+              name
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        definition: {
+          type: 'adlign_variant',
+          name: 'Adlign Variant',
+          description: 'Dynamic content variants for Adlign campaigns',
+          fieldDefinitions: [
+            { key: 'product_gid', name: 'Product GID', type: 'single_line_text_field' },
+            { key: 'handle', name: 'Handle', type: 'single_line_text_field' },
+            { key: 'content_json', name: 'Content JSON', type: 'multi_line_text_field' },
+            { key: 'created_at', name: 'Created At', type: 'date_time' }
+          ]
+        }
+      };
+
+      const createResponse = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query: createMutation, variables }),
+      });
+
+      const createResult = await createResponse.json() as any;
+      
+      if (createResult.errors) {
+        console.error('Failed to create metaobject definition:', createResult.errors);
+        return false;
+      }
+
+      const definitionResult = createResult.data?.metaobjectDefinitionCreate;
+      if (definitionResult?.userErrors?.length > 0) {
+        console.error('Metaobject definition creation errors:', definitionResult.userErrors);
+        return false;
+      }
+
+      console.log('✅ Metaobject definition adlign_variant created successfully');
+      return true;
+    } catch (error) {
+      console.error('Error ensuring metaobject definition:', error);
+      return false;
+    }
+  }
+
+  /**
    * Génère un state sécurisé pour OAuth
    */
   private generateState(shop: string): string {

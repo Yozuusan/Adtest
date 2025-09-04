@@ -1,4 +1,4 @@
-import { createClient, RedisClientType } from 'redis';
+import { Redis } from '@upstash/redis';
 import { logger } from '../utils/logger';
 
 export interface ThemeAdapter {
@@ -11,45 +11,31 @@ export interface ThemeAdapter {
 }
 
 export class CacheService {
-  private redis: RedisClientType;
-  private isConnected = false;
+  private redis: Redis;
 
   constructor() {
-    this.redis = createClient({
-      url: process.env.REDIS_URL
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!
     });
-
-    this.redis.on('error', (err) => {
-      logger.error('Redis error:', err);
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('✅ Redis connected for cache service');
-      this.isConnected = true;
-    });
-
-    this.redis.on('disconnect', () => {
-      logger.info('❌ Redis disconnected from cache service');
-      this.isConnected = false;
-    });
+    
+    logger.info('✅ Upstash Redis initialized for cache service');
   }
 
   async connect(): Promise<void> {
-    if (!this.isConnected) {
-      await this.redis.connect();
-    }
+    // Upstash Redis doesn't need explicit connection
+    logger.info('✅ Cache service ready');
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected) {
-      await this.redis.quit();
-    }
+    // Upstash Redis doesn't need explicit disconnection
+    logger.info('❌ Cache service disconnected');
   }
 
   async setThemeAdapter(shopId: string, fingerprint: string, adapter: ThemeAdapter): Promise<void> {
     try {
       const key = `adapter:${shopId}:${fingerprint}`;
-      await this.redis.set(key, JSON.stringify(adapter), { EX: 86400 * 7 }); // 7 days TTL
+      await this.redis.set(key, JSON.stringify(adapter), { ex: 86400 * 7 }); // 7 days TTL
       logger.info(`✅ Theme adapter cached for shop ${shopId}, fingerprint ${fingerprint}`);
     } catch (error) {
               logger.error('Failed to cache theme adapter:', { error: String(error) });

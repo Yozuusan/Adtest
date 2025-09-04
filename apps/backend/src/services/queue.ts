@@ -1,24 +1,60 @@
 import { MappingJob } from '../types';
 import { supabaseService } from './supabase';
+import { Redis } from '@upstash/redis';
+import { v4 as uuidv4 } from 'uuid';
 
 export class QueueService {
+  private redis: Redis;
+
+  constructor() {
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!
+    });
+    
+    console.log('✅ Upstash Redis initialized for queue service');
+  }
+
   /**
    * Enqueuer un job de mapping
    */
   async enqueueMappingJob(job: Omit<MappingJob, 'id' | 'created_at'>): Promise<string> {
     try {
-      // Créer le job dans Supabase
+      const jobId = uuidv4();
+      const fullJob: MappingJob = {
+        id: jobId,
+        ...job,
+        created_at: new Date().toISOString(),
+        status: job.status || 'pending',
+        priority: job.priority || 'normal',
+        progress: 0
+      };
+
+      // Enregistrer dans Supabase pour persistance
       const supabaseJob = await supabaseService.createMappingJob({
-        shop_id: 'unknown', // TODO: Ajouter shop_id au type MappingJob
-        product_url: undefined,
-        product_gid: undefined,
+        shop_id: job.shop_id,
+        product_url: job.product_url,
+        product_gid: job.product_gid,
         status: 'pending',
-        priority: 'normal',
+        priority: job.priority || 'normal',
         estimated_duration: '5-10 minutes'
       });
 
-      console.log(`✅ Mapping job enqueued in Supabase: ${supabaseJob.id}`);
-      return supabaseJob.id;
+      // Utiliser l'ID de Supabase
+      fullJob.id = supabaseJob.id;
+
+      // Enqueuer dans Redis pour le worker
+      const queueKey = `mapping_queue:${job.shop_id}`;
+      const jobKey = `mapping_job:${fullJob.id}`;
+      
+      // Stocker les détails du job
+      await this.redis.set(jobKey, JSON.stringify(fullJob), { ex: 86400 }); // 24h TTL
+      
+      // Ajouter à la queue de la boutique
+      await this.redis.lpush(queueKey, JSON.stringify(fullJob));
+
+      console.log(`✅ Mapping job enqueued: ${fullJob.id} for shop ${job.shop_id}`);
+      return fullJob.id;
     } catch (error) {
       console.error('❌ Error enqueueing mapping job:', error);
       throw new Error(`Failed to enqueue mapping job: ${error}`);
@@ -30,7 +66,15 @@ export class QueueService {
    */
   async getJobStatus(jobId: string): Promise<MappingJob | null> {
     try {
-      // Récupérer le job depuis Supabase
+      // D'abord essayer Redis pour les données les plus récentes
+      const jobKey = `mapping_job:${jobId}`;
+      const redisData = await this.redis.get(jobKey);
+      
+      if (redisData) {
+        return JSON.parse(redisData);
+      }
+
+      // Sinon, récupérer depuis Supabase
       const supabaseJob = await supabaseService.getMappingJobById(jobId);
       
       if (!supabaseJob) {
@@ -40,14 +84,17 @@ export class QueueService {
       // Convertir vers le type MappingJob
       return {
         id: supabaseJob.id,
-        product_handle: 'unknown', // TODO: Ajouter au type Supabase
-        theme_id: 'unknown', // TODO: Ajouter au type Supabase
-        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status, // Map 'running' vers 'processing'
+        shop_id: supabaseJob.shop_id,
+        product_handle: supabaseJob.product_url?.split('/').pop(),
+        product_url: supabaseJob.product_url,
+        product_gid: supabaseJob.product_gid,
+        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status,
         created_at: supabaseJob.created_at,
         started_at: supabaseJob.started_at,
         completed_at: supabaseJob.completed_at,
         result: supabaseJob.result,
-        error: supabaseJob.error
+        error: supabaseJob.error,
+        priority: supabaseJob.priority as 'low' | 'normal' | 'high'
       };
     } catch (error) {
       console.error('❌ Error getting job status:', error);
@@ -73,14 +120,17 @@ export class QueueService {
       // Convertir vers le type MappingJob
       const jobs: MappingJob[] = supabaseJobs.map(supabaseJob => ({
         id: supabaseJob.id,
-        product_handle: 'unknown', // TODO: Ajouter au type Supabase
-        theme_id: 'unknown', // TODO: Ajouter au type Supabase
-        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status, // Map 'running' vers 'processing'
+        shop_id: supabaseJob.shop_id,
+        product_handle: supabaseJob.product_url?.split('/').pop(),
+        product_url: supabaseJob.product_url,
+        product_gid: supabaseJob.product_gid,
+        status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status,
         created_at: supabaseJob.created_at,
         started_at: supabaseJob.started_at,
         completed_at: supabaseJob.completed_at,
         result: supabaseJob.result,
-        error: supabaseJob.error
+        error: supabaseJob.error,
+        priority: supabaseJob.priority as 'low' | 'normal' | 'high'
       }));
 
       return {
@@ -146,6 +196,7 @@ export class QueueService {
    */
   async close(): Promise<void> {
     try {
+      // Upstash Redis doesn't need explicit closing
       await supabaseService.close();
       console.log('✅ Queue service closed');
     } catch (error) {

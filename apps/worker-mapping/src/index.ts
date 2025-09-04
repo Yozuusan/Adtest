@@ -2,7 +2,7 @@
 import './instrument';
 import Sentry from './instrument';
 
-import { createClient } from 'redis';
+import { Redis } from '@upstash/redis';
 import { chromium, Browser, Page } from 'playwright';
 import { config } from 'dotenv';
 import { cacheService } from './services/cache';
@@ -15,22 +15,17 @@ import { logger } from './utils/logger';
 config();
 
 class MappingWorker {
-  private redis: ReturnType<typeof createClient>;
+  private redis: Redis;
   private browser: Browser | null = null;
   private isRunning = false;
 
   constructor() {
-    this.redis = createClient({
-      url: process.env.REDIS_URL
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!
     });
-
-    this.redis.on('error', (err) => {
-      logger.error('Redis error:', err);
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('✅ Redis connected for job processing');
-    });
+    
+    logger.info('✅ Upstash Redis initialized for job processing');
   }
 
   /**
@@ -38,7 +33,6 @@ class MappingWorker {
    */
   async init(): Promise<void> {
     try {
-      await this.redis.connect();
       await cacheService.connect();
       await mappingService.connect();
       
@@ -108,7 +102,7 @@ class MappingWorker {
       await this.browser.close();
     }
     
-    await this.redis.quit();
+    // Upstash Redis doesn't need explicit disconnect
     await cacheService.disconnect();
     await mappingService.disconnect();
     
@@ -121,13 +115,13 @@ class MappingWorker {
   private async processNextJob(): Promise<void> {
     try {
       // Get all shop queues
-      const shopKeys = await this.redis.keys('mapping_queue:*');
+      const shopKeys = await this.redis.keys('mapping_queue:*') as string[];
       
       for (const queueKey of shopKeys) {
         const shopId = queueKey.replace('mapping_queue:', '');
         
         // Process jobs for this shop
-        const jobData = await this.redis.rPop(queueKey);
+        const jobData = await this.redis.rpop(queueKey) as string | null;
         
         if (jobData) {
           const job = JSON.parse(jobData);

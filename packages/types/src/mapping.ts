@@ -22,9 +22,20 @@ export interface ElementSelector {
 
 export interface MappingJob {
   id: string;
-  product_handle: string;
-  theme_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  shop_id: string;
+  product_handle?: string;
+  product_url?: string;
+  product_gid?: string;
+  theme_id?: string;
+  priority?: 'low' | 'normal' | 'high';
+  options?: {
+    extract_images?: boolean;
+    extract_usp?: boolean;
+    extract_badges?: boolean;
+    confidence_threshold?: number;
+  };
+  status: 'pending' | 'processing' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress?: number;
   created_at: string;
   started_at?: string;
   completed_at?: string;

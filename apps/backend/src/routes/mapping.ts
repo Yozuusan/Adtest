@@ -39,9 +39,18 @@ router.post('/build', async (req, res, next) => {
 
     // Enqueuer le job dans la queue
     const jobId = await queueService.enqueueMappingJob({
-      product_handle: product_url || product_gid || 'unknown',
-      theme_id: 'unknown', // Sera déterminé lors du mapping
-      status: 'pending'
+      shop_id: shop_id,
+      product_url: product_url,
+      product_gid: product_gid,
+      product_handle: product_url ? product_url.split('/').pop() : undefined,
+      status: 'pending',
+      priority: 'normal',
+      options: {
+        extract_images: true,
+        extract_usp: true,
+        extract_badges: true,
+        confidence_threshold: 0.7
+      }
     });
 
     res.status(202).json({
@@ -80,10 +89,10 @@ router.get('/status/:job_id', async (req, res, next) => {
       throw createError('Job not found', 404);
     }
 
-    // TODO: Ajouter shop_id au type MappingJob pour cette vérification
-    // if (jobStatus.shop_id !== shop_id) {
-    //   throw createError('Job does not belong to this shop', 403);
-    // }
+    // Vérifier que le job appartient bien à cette boutique
+    if (jobStatus.shop_id !== shop_id) {
+      throw createError('Job does not belong to this shop', 403);
+    }
 
     res.json({
       success: true,

@@ -27,6 +27,9 @@ router.post('/', async (req, res, next) => {
       throw createError('Shop not authenticated. Please install the app first.', 401);
     }
 
+    // S'assurer que la définition de metaobject existe
+    await shopifyService.ensureMetaobjectDefinition(shop);
+
     // Créer le metaobject avec le contenu du variant
     const metaobject = await shopifyService.createOrUpdateMetaobject(
       shop,

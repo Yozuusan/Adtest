@@ -1,0 +1,149 @@
+{% comment %}
+  Adlign Metaobject Injector Snippet
+  Ce snippet utilise les VRAIS metaobjects Shopify (pas des metafields)
+  Il lit les données depuis les metaobjects avec le handle correspondant
+{% endcomment %}
+
+{% comment %} Détecter le paramètre ?adlign_variant= dans l'URL {% endcomment %}
+{% assign adlign_variant = request.query_string | split: 'adlign_variant=' | last | split: '&' | first %}
+
+{% if adlign_variant and adlign_variant != '' %}
+  {% comment %} Variante Adlign détectée - chercher le metaobject correspondant {% endcomment %}
+  
+  {% comment %} Récupérer le metaobject avec le handle de la variante {% endcomment %}
+  {% assign variant_metaobject = shop.metaobjects['adlign_variant'][adlign_variant] %}
+  
+  {% if variant_metaobject %}
+    {% comment %} Metaobject trouvé - extraire les données {% endcomment %}
+    {% assign content_json = variant_metaobject.content_json.value | parse_json %}
+    {% assign product_gid = variant_metaobject.product_gid.value %}
+    
+    {% if content_json %}
+      {% comment %} Injecter les données du metaobject {% endcomment %}
+      <script id="adlign-metaobject-data" type="application/json">
+        {
+          "adlign_variant": {{ adlign_variant | json }},
+          "shop": {{ shop.permanent_domain | json }},
+          "product_id": {{ product.id | json }},
+          "metaobject_id": {{ variant_metaobject.id | json }},
+          "variant_data": {
+            "title": {{ content_json.title | json }},
+            "subtitle": {{ content_json.subtitle | json }},
+            "description_html": {{ content_json.description_html | json }},
+            "hero_image": {{ content_json.hero_image | json }},
+            "usp_list": {{ content_json.usp_list | json }},
+            "cta_primary": {{ content_json.cta_primary | json }},
+            "cta_secondary": {{ content_json.cta_secondary | json }},
+            "badges": {{ content_json.badges | json }},
+            "campaign_ref": {{ content_json.campaign_ref | json }},
+            "theme_fingerprint": {{ content_json.theme_fingerprint | json }}
+          },
+          "backend_url": "{{ 'https://adtest-production.up.railway.app' | escape }}",
+          "source": "metaobject"
+        }
+      </script>
+      
+      {% comment %} Charger le micro-kernel Adlign {% endcomment %}
+      <script src="{{ 'adlign-micro-kernel.js' | asset_url }}" defer></script>
+      
+      {% comment %} Initialiser Adlign {% endcomment %}
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof window.Adlign !== 'undefined') {
+            window.Adlign.init();
+          }
+        });
+      </script>
+      
+      {% comment %} Debug: afficher les données injectées {% endcomment %}
+      {% if request.design_mode %}
+        <div style="background: #e7f5e7; border: 1px solid #28a745; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>✅ Mode Design - Metaobject Adlign trouvé:</strong><br>
+          Handle: {{ adlign_variant }}<br>
+          Metaobject ID: {{ variant_metaobject.id }}<br>
+          Product GID: {{ product_gid }}<br>
+          Titre: {{ content_json.title }}<br>
+          CTA: {{ content_json.cta_primary }}<br>
+          <small>✅ Données lues depuis le metaobject adlign_variant</small>
+        </div>
+      {% endif %}
+      
+    {% else %}
+      {% comment %} Metaobject trouvé mais pas de content_json valide {% endcomment %}
+      {% if request.design_mode %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>⚠️ Mode Design - Metaobject trouvé mais contenu invalide:</strong><br>
+          Handle: {{ adlign_variant }}<br>
+          Metaobject ID: {{ variant_metaobject.id }}<br>
+          <small>❌ Le champ content_json est vide ou malformé</small><br>
+          <small>💡 Mettez à jour le metaobject via l'API backend</small>
+        </div>
+      {% endif %}
+    {% endif %}
+    
+  {% else %}
+    {% comment %} Metaobject non trouvé pour ce handle {% endcomment %}
+    {% if request.design_mode %}
+      <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 4px;">
+        <strong>⚠️ Mode Design - Metaobject non trouvé:</strong><br>
+        Handle recherché: {{ adlign_variant }}<br>
+        <small>❌ Aucun metaobject adlign_variant avec ce handle</small><br>
+        <small>💡 Créez-le via l'API backend : POST /variants</small><br>
+        <small>🔗 URL: <code>{{ shop.permanent_domain }}/admin/content/entries</code></small>
+      </div>
+    {% endif %}
+  {% endif %}
+  
+{% else %}
+  {% comment %} Pas de variante Adlign - page normale {% endcomment %}
+  {% if request.design_mode %}
+    <div style="background: #d1ecf1; border: 1px solid #17a2b8; padding: 10px; margin: 10px 0; border-radius: 4px;">
+      <strong>ℹ️ Mode Design - Page normale (metaobjects):</strong><br>
+      <small>Ajoutez ?adlign_variant=handle à l'URL pour tester une variante</small><br>
+      <small>💡 Exemple: ?adlign_variant=bf-2025</small><br>
+      <small>📦 Cette version utilise les metaobjects Shopify natifs</small>
+    </div>
+  {% endif %}
+{% endif %}
+
+{% comment %} Fallback vers l'ancien système metafields si nécessaire {% endcomment %}
+{% unless variant_metaobject %}
+  {% if adlign_variant and adlign_variant != '' %}
+    {% comment %} Essayer l'ancien système avec metafields comme fallback {% endcomment %}
+    {% assign adlign_settings = product.metafields.adlign_data.settings %}
+    {% if adlign_settings %}
+      {% assign variant_data = adlign_settings[adlign_variant] %}
+      {% if variant_data %}
+        <script id="adlign-fallback-data" type="application/json">
+          {
+            "adlign_variant": {{ adlign_variant | json }},
+            "shop": {{ shop.permanent_domain | json }},
+            "product_id": {{ product.id | json }},
+            "variant_data": {{ variant_data | json }},
+            "backend_url": "{{ 'https://adtest-production.up.railway.app' | escape }}",
+            "source": "metafield_fallback"
+          }
+        </script>
+        
+        <script src="{{ 'adlign-micro-kernel.js' | asset_url }}" defer></script>
+        
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.Adlign !== 'undefined') {
+              window.Adlign.init();
+            }
+          });
+        </script>
+        
+        {% if request.design_mode %}
+          <div style="background: #ffeaa7; border: 1px solid #fdcb6e; padding: 10px; margin: 10px 0; border-radius: 4px;">
+            <strong>🔄 Mode Design - Fallback metafield activé:</strong><br>
+            Handle: {{ adlign_variant }}<br>
+            <small>⚡ Utilise l'ancien système metafields comme fallback</small><br>
+            <small>💡 Migration vers metaobjects recommandée</small>
+          </div>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endunless %}

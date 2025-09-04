@@ -1,4 +1,4 @@
-import { createClient, RedisClientType } from 'redis';
+import { Redis } from '@upstash/redis';
 import { logger } from '../utils/logger';
 
 export interface MappingJob {
@@ -22,39 +22,25 @@ export interface MappingJob {
 }
 
 export class MappingService {
-  private redis: RedisClientType;
-  private isConnected = false;
+  private redis: Redis;
 
   constructor() {
-    this.redis = createClient({
-      url: process.env.REDIS_URL
+    this.redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!
     });
-
-    this.redis.on('error', (err) => {
-      logger.error('Redis error:', err);
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('✅ Redis connected for mapping service');
-      this.isConnected = true;
-    });
-
-    this.redis.on('disconnect', () => {
-      logger.info('❌ Redis disconnected from mapping service');
-      this.isConnected = false;
-    });
+    
+    logger.info('✅ Upstash Redis initialized for mapping service');
   }
 
   async connect(): Promise<void> {
-    if (!this.isConnected) {
-      await this.redis.connect();
-    }
+    // Upstash Redis doesn't need explicit connection
+    logger.info('✅ Mapping service ready');
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected) {
-      await this.redis.quit();
-    }
+    // Upstash Redis doesn't need explicit disconnection
+    logger.info('❌ Mapping service disconnected');
   }
 
   async updateJobStatus(jobId: string, status: string, data: any = {}): Promise<void> {
@@ -71,7 +57,7 @@ export class MappingService {
           ...data
         };
         
-        await this.redis.set(key, JSON.stringify(updatedJob), { EX: 86400 }); // 24 hours TTL
+        await this.redis.set(key, JSON.stringify(updatedJob), { ex: 86400 }); // 24 hours TTL
         logger.info(`📊 Job ${jobId} status updated to ${status}`);
       } else {
         logger.warn(`⚠️ Job ${jobId} not found for status update`);
@@ -131,7 +117,7 @@ export class MappingService {
           // Remove from queue if still pending
           if (job.status === 'pending') {
             const queueKey = `mapping_queue:${job.shop_id}`;
-            await this.redis.lRem(queueKey, 1, JSON.stringify(job));
+            await this.redis.lrem(queueKey, 1, JSON.stringify(job));
           }
           
           logger.info(`🚫 Job ${jobId} cancelled successfully`);
