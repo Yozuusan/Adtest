@@ -35,6 +35,7 @@ import aiVariantsRoutes from './routes/ai-variants';
 import brandRoutes from './routes/brand';
 import userShopsRoutes from './routes/user-shops';
 import installRoutes from './routes/install';
+import debugFrontendRoutes from './routes/debug-frontend';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -92,6 +93,7 @@ app.use('/ai-variants', aiVariantsRoutes);
 app.use('/brand', brandRoutes);
 app.use('/user-shops', userShopsRoutes);
 app.use('/install', installRoutes);
+app.use('/debug-frontend', debugFrontendRoutes);
 
 // Route API directe pour le micro-kernel (évite les problèmes de routage)
 app.get('/api/variant-data', async (req, res) => {
