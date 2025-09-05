@@ -71,7 +71,7 @@ export class QueueService {
       const redisData = await this.redis.get(jobKey);
       
       if (redisData) {
-        return JSON.parse(redisData);
+        return JSON.parse(redisData as string);
       }
 
       // Sinon, récupérer depuis Supabase
@@ -85,7 +85,7 @@ export class QueueService {
       return {
         id: supabaseJob.id,
         shop_id: supabaseJob.shop_id,
-        product_handle: supabaseJob.product_url?.split('/').pop(),
+        product_handle: supabaseJob.product_url?.split('/').pop() || undefined,
         product_url: supabaseJob.product_url,
         product_gid: supabaseJob.product_gid,
         status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status,
@@ -121,9 +121,10 @@ export class QueueService {
       const jobs: MappingJob[] = supabaseJobs.map(supabaseJob => ({
         id: supabaseJob.id,
         shop_id: supabaseJob.shop_id,
-        product_handle: supabaseJob.product_url?.split('/').pop(),
+        product_handle: supabaseJob.product_url?.split('/').pop() || undefined,
         product_url: supabaseJob.product_url,
         product_gid: supabaseJob.product_gid,
+        theme_id: undefined, // Optionnel dans le type MappingJob
         status: supabaseJob.status === 'running' ? 'processing' : supabaseJob.status,
         created_at: supabaseJob.created_at,
         started_at: supabaseJob.started_at,

@@ -41,7 +41,7 @@ export interface SupabaseMappingJob {
   shop_id: string; // Changé de 'shop_domain' à 'shop_id'
   product_url?: string;
   product_gid?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'running';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'running' | 'cancelled';
   priority: 'low' | 'normal' | 'high';
   estimated_duration?: string;
   result?: any;
