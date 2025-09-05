@@ -464,7 +464,8 @@ app.get('/health', (req, res) => {
       adlign_variants: 'active',
       products: 'active',
       ai_variants: 'active',
-      brand: 'active'
+      brand: 'active',
+      debug_frontend: 'active'
     }
   });
 });
@@ -519,6 +520,10 @@ app.get('/', (req, res) => {
         upload_doc: 'POST /brand/upload-doc (FormData: brand_document, shop, document_type)',
         save_info: 'POST /brand/save-info (JSON: shop, brand_info)',
         summary: 'GET /brand/summary?shop=your-store.myshopify.com'
+      },
+      debug_frontend: {
+        identify: 'POST /debug-frontend/identify (JSON: user_id, email)',
+        link_shop: 'POST /debug-frontend/link-shop (JSON: user_id, shop_domain)'
       }
     },
     documentation: 'Voir les routes individuelles pour plus de détails'
