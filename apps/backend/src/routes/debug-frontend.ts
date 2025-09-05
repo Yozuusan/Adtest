@@ -20,7 +20,7 @@ router.post('/identify', async (req, res) => {
     console.log(`🔍 Frontend Debug - User ID: ${user_id}, Email: ${email}`);
 
     // Récupérer les boutiques de cet utilisateur
-    const { data: userShops, error } = await supabaseService.supabase
+    const { data: userShops, error } = await supabaseService.getClient()
       .from('user_shops')
       .select(`
         *,
@@ -75,7 +75,7 @@ router.post('/link-shop', async (req, res) => {
     console.log(`🔗 Linking frontend user ${user_id} to shop ${shop_domain}`);
 
     // Trouver la boutique par domaine
-    const { data: shop, error: shopError } = await supabaseService.supabase
+    const { data: shop, error: shopError } = await supabaseService.getClient()
       .from('shops')
       .select('*')
       .eq('domain', shop_domain)
@@ -89,7 +89,7 @@ router.post('/link-shop', async (req, res) => {
     }
 
     // Vérifier si l'association existe déjà
-    const { data: existingAssoc } = await supabaseService.supabase
+    const { data: existingAssoc } = await supabaseService.getClient()
       .from('user_shops')
       .select('*')
       .eq('user_id', user_id)
@@ -105,7 +105,7 @@ router.post('/link-shop', async (req, res) => {
     }
 
     // Créer l'association
-    const { data: newAssoc, error: assocError } = await supabaseService.supabase
+    const { data: newAssoc, error: assocError } = await supabaseService.getClient()
       .from('user_shops')
       .insert({
         user_id,
