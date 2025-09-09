@@ -1,23 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Loader, Edit, Code } from 'lucide-react';
-import { Product, Creative, NewVariantFormData } from '@/types';
+import { Loader } from 'lucide-react';
+import { Product, Creative } from '@/types';
 import { apiService } from '@/services/api';
 
 interface VariantReviewProps {
   product: Product | null;
   creative: Creative | null;
-  formData: Partial<NewVariantFormData>;
-  onFormDataChange: (data: Partial<NewVariantFormData>) => void;
 }
 
-export function VariantReview({ product, creative, onFormDataChange }: VariantReviewProps) {
+export function VariantReview({ product, creative }: VariantReviewProps) {
   const [generatedContent, setGeneratedContent] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeVariant, setActiveVariant] = useState<'scanned' | 'generated'>('scanned');
   const [fieldToggles, setFieldToggles] = useState<Record<string, boolean>>({
     title: false,
     description: false,

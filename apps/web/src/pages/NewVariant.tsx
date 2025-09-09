@@ -186,8 +186,6 @@ export function NewVariant() {
                 <VariantReview
                   product={selectedProduct}
                   creative={selectedCreative}
-                  formData={formData}
-                  onFormDataChange={setFormData}
                 />
               )}
             </CardContent>
