@@ -204,18 +204,19 @@ Generate an optimized product page variant that aligns with the creative analysi
   ]
 }
 
-Focus on:
-- Conversion optimization
-- Alignment with creative messaging
-- Emotional triggers from the analysis
-- Clear value proposition
-- Urgency or scarcity if present in creative
-- Trust signals and social proof
+IMPORTANT INSTRUCTIONS:
+- Generate a NEW, compelling title that incorporates insights from the creative analysis
+- If the creative analysis mentions specific benefits (e.g., anti-itch, soothing, natural), reflect them in the title and description
+- Create a rich HTML description that expands on the creative's key selling points
+- Use emotional triggers and target audience insights from the analysis
+- Include specific benefits mentioned in the creative analysis
+- Generate CTAs that align with the creative's call-to-action style
+- Create relevant badges based on the creative's trust signals
 `;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -239,6 +240,12 @@ Focus on:
     return JSON.parse(generatedContent);
   } catch (error) {
     console.error('❌ Error generating variant with AI:', error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      productInfo: productInfo.title,
+      creativeAnalysisLength: creativeAnalysis.length
+    });
     
     // Fallback variant en cas d'erreur IA
     return {
