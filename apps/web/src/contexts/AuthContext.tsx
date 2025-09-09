@@ -78,65 +78,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔍 Fetching user shops for user:', user.id);
       
-      // Utiliser une requête simple d'abord, puis enrichir avec les données de shop
-      console.log('🔍 Executing Supabase query for user:', user.id);
-      
-      // 1. Récupérer les associations user_shops
+      // Utiliser une requête jointe pour récupérer user_shops avec les données shop
       const { data: userShopsData, error: userShopsError } = await supabase
         .from('user_shops')
-        .select('*')
-        .eq('user_id', user.id);
+        .select(`
+          id,
+          user_id,
+          shop_id,
+          role,
+          created_at,
+          updated_at,
+          shop:shops!inner (
+            id,
+            domain,
+            access_token,
+            scope,
+            shop_owner,
+            email,
+            country_code,
+            currency,
+            timezone,
+            created_at,
+            updated_at,
+            expires_at,
+            is_active
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('shop.is_active', true);
 
       if (userShopsError) {
-        console.error('❌ Error fetching user_shops:', userShopsError);
+        console.error('❌ Error fetching user shops with join:', userShopsError);
         setUserShops([]);
         return;
       }
 
-      console.log('📋 User shops data:', userShopsData);
+      console.log('📋 User shops data with join:', userShopsData);
 
-      // 2. Récupérer les données des shops correspondants
-      if (userShopsData && userShopsData.length > 0) {
-        const shopIds = userShopsData.map(us => us.shop_id);
-        console.log('🔍 Fetching shops with IDs:', shopIds);
+      // Transformer les données au bon format (Supabase retourne shop comme array avec inner join)
+      const enrichedShops = userShopsData?.map(userShop => ({
+        ...userShop,
+        shop: Array.isArray(userShop.shop) ? userShop.shop[0] : userShop.shop
+      })) || [];
+
+      console.log('🔗 Enriched shops:', enrichedShops);
+      
+      setUserShops(enrichedShops);
+      
+      // Set first shop as current if none selected
+      if (enrichedShops.length > 0 && !currentShop) {
+        const savedShopId = localStorage.getItem('currentShopId');
+        const savedShop = savedShopId ? enrichedShops.find(s => s.id === savedShopId) : null;
+        const shopToSet = savedShop || enrichedShops[0];
+        setCurrentShop(shopToSet);
+        console.log('🎯 Set current shop:', shopToSet);
+        console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
         
-        const { data: shopsData, error: shopsError } = await supabase
-          .from('shops')
-          .select('*')
-          .in('id', shopIds);
-
-        if (shopsError) {
-          console.error('❌ Error fetching shops:', shopsError);
-          setUserShops([]);
-          return;
+        // Store shop domain in localStorage for API calls
+        if (shopToSet?.shop?.domain) {
+          localStorage.setItem('shopDomain', shopToSet.shop.domain);
         }
-
-        console.log('📋 Shops data:', shopsData);
-
-        // 3. Combiner les données
-        const enrichedShops = userShopsData.map(userShop => {
-          const shop = shopsData?.find(s => s.id === userShop.shop_id);
-          return {
-            ...userShop,
-            shop: shop || null
-          };
-        });
-
-        console.log('🔗 Enriched shops:', enrichedShops);
-        
-        setUserShops(enrichedShops);
-        
-        // Set first shop as current if none selected
-        if (enrichedShops.length > 0 && !currentShop) {
-          const savedShopId = localStorage.getItem('currentShopId');
-          const savedShop = savedShopId ? enrichedShops.find(s => s.id === savedShopId) : null;
-          const shopToSet = savedShop || enrichedShops[0];
-          setCurrentShop(shopToSet);
-          console.log('🎯 Set current shop:', shopToSet);
-          console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
-        }
-      } else {
-        setUserShops([]);
       }
     } catch (error) {
       console.error('❌ Error fetching user shops:', error);

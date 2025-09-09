@@ -4,6 +4,7 @@ import { Plus, TrendingUp, Users, ShoppingCart, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useVariantStore } from '@/stores/useVariantStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Overview() {
   const { 
@@ -13,24 +14,27 @@ export function Overview() {
     error, 
     fetchAnalytics, 
     fetchVariants,
-    currentShop 
   } = useVariantStore();
+  
+  const { currentShop } = useAuth();
 
   useEffect(() => {
-    const shop = localStorage.getItem('shopDomain');
-    if (shop) {
-      fetchAnalytics(shop);
-      fetchVariants(shop);
+    const shopDomain = currentShop?.shop?.domain;
+    if (shopDomain) {
+      console.log('🔄 Overview: Fetching data for shop:', shopDomain);
+      fetchAnalytics(shopDomain);
+      fetchVariants(shopDomain);
+    } else {
+      console.log('⚠️ Overview: No shop domain available');
     }
-  }, [fetchAnalytics, fetchVariants]);
+  }, [fetchAnalytics, fetchVariants, currentShop]);
 
   const getShopDomain = () => {
-    return localStorage.getItem('shopDomain') || 'Not connected';
+    return currentShop?.shop?.domain || 'Not connected';
   };
 
   const getConnectionStatus = () => {
-    const shop = localStorage.getItem('shopDomain');
-    return shop ? 'Connected' : 'Not connected';
+    return currentShop?.shop?.domain ? 'Connected' : 'Not connected';
   };
 
   return (
@@ -41,7 +45,7 @@ export function Overview() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome back! 👋</h1>
             <p className="text-gray-600 mt-1">
-              {currentShop ? `Connected to ${currentShop}` : 'Connect your Shopify store to get started'}
+              {currentShop?.shop?.domain ? `Connected to ${currentShop.shop.domain}` : 'Connect your Shopify store to get started'}
             </p>
           </div>
           <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
@@ -217,7 +221,7 @@ export function Overview() {
               <p className="text-sm text-gray-600">Status: <span className="font-medium">{getConnectionStatus()}</span></p>
               <p className="text-sm text-gray-600">Domain: <span className="font-medium">{getShopDomain()}</span></p>
             </div>
-            {!currentShop && (
+            {!currentShop?.shop?.domain && (
               <Button asChild>
                 <Link to="/connect-store">Connect Store</Link>
               </Button>
