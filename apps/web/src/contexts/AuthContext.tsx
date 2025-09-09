@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserShopWithShop } from '@/lib/supabase';
+import { apiService } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -76,60 +77,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      console.log('🔍 Fetching user shops for user:', user.id);
+      console.log('🔍 Fetching user shops via API for user:', user.id);
       
-      // Utiliser une requête jointe pour récupérer user_shops avec les données shop
-      const { data: userShopsData, error: userShopsError } = await supabase
-        .from('user_shops')
-        .select(`
-          id,
-          user_id,
-          shop_id,
-          role,
-          created_at,
-          updated_at,
-          shop:shops!inner (
-            id,
-            domain,
-            access_token,
-            scope,
-            shop_owner,
-            email,
-            country_code,
-            currency,
-            timezone,
-            created_at,
-            updated_at,
-            expires_at,
-            is_active
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('shop.is_active', true);
+      // Utiliser l'API backend qui a les privilèges service-role
+      const userShopsData = await apiService.getUserShops(user.id);
 
-      if (userShopsError) {
-        console.error('❌ Error fetching user shops with join:', userShopsError);
-        setUserShops([]);
-        return;
-      }
+      console.log('📋 User shops data from API:', userShopsData);
 
-      console.log('📋 User shops data with join:', userShopsData);
-
-      // Transformer les données au bon format (Supabase retourne shop comme array avec inner join)
-      const enrichedShops = userShopsData?.map(userShop => ({
-        ...userShop,
-        shop: Array.isArray(userShop.shop) ? userShop.shop[0] : userShop.shop
-      })) || [];
-
-      console.log('🔗 Enriched shops:', enrichedShops);
-      
-      setUserShops(enrichedShops);
+      // Les données viennent déjà avec la structure correcte depuis le backend
+      setUserShops(userShopsData);
       
       // Set first shop as current if none selected
-      if (enrichedShops.length > 0 && !currentShop) {
+      if (userShopsData.length > 0 && !currentShop) {
         const savedShopId = localStorage.getItem('currentShopId');
-        const savedShop = savedShopId ? enrichedShops.find(s => s.id === savedShopId) : null;
-        const shopToSet = savedShop || enrichedShops[0];
+        const savedShop = savedShopId ? userShopsData.find(s => s.id === savedShopId) : null;
+        const shopToSet = savedShop || userShopsData[0];
         setCurrentShop(shopToSet);
         console.log('🎯 Set current shop:', shopToSet);
         console.log('🎯 Current shop domain:', shopToSet?.shop?.domain);
@@ -140,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('❌ Error fetching user shops:', error);
+      console.error('❌ Error fetching user shops via API:', error);
       setUserShops([]);
     }
   };

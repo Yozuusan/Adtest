@@ -128,6 +128,19 @@ class ApiService {
   async getMappingStatus(jobId: string): Promise<any> {
     return this.request(`/mapping/status/${jobId}`);
   }
+
+  // User Shops API
+  async getUserShops(userId: string): Promise<any[]> {
+    console.log('🔄 API.getUserShops called for user:', userId);
+    try {
+      const result = await this.request(`/user-shops/${userId}`) as { shops?: any[] };
+      console.log('✅ API.getUserShops success:', result);
+      return result.shops || [];
+    } catch (error) {
+      console.error('❌ API.getUserShops error:', error);
+      return [];
+    }
+  }
 }
 
 export const apiService = new ApiService();
