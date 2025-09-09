@@ -219,7 +219,7 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
             <div>
               <label className="text-sm font-medium text-gray-700">Key Selling Points</label>
               <div className="mt-2 space-y-2">
-                {content.usp_list.map((usp, index) => (
+                {content.usp_list.map((usp: string, index: number) => (
                   <div key={index} className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="text-sm text-gray-900">{usp}</span>
@@ -234,7 +234,7 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
             <div>
               <label className="text-sm font-medium text-gray-700">Promotional Badges</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {content.badges.map((badge, index) => (
+                {content.badges.map((badge: string, index: number) => (
                   <Badge key={index} variant="outline" className="text-xs">
                     {badge}
                   </Badge>

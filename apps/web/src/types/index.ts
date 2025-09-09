@@ -6,6 +6,8 @@ export interface Product {
   status: 'active' | 'draft' | 'archived';
   product_type: string;
   vendor: string;
+  description?: string;
+  body_html?: string;
   image_url?: string;
   created_at: string;
   updated_at: string;
