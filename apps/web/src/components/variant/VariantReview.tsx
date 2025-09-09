@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit3, Save, X, Loader } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader, Edit, Code } from 'lucide-react';
 import { Product, Creative, NewVariantFormData } from '@/types';
 import { apiService } from '@/services/api';
 
@@ -16,10 +15,15 @@ interface VariantReviewProps {
 }
 
 export function VariantReview({ product, creative, onFormDataChange }: VariantReviewProps) {
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
   const [generatedContent, setGeneratedContent] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeVariant, setActiveVariant] = useState<'scanned' | 'generated'>('scanned');
+  const [fieldToggles, setFieldToggles] = useState<Record<string, boolean>>({
+    title: false,
+    description: false,
+    ctaButton: false,
+    promotionalBadge: false,
+  });
 
   if (!product || !creative) {
     return (
@@ -71,113 +75,60 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
     }
   }, [product, creative, generatedContent, isGenerating]);
 
-  // Fallback content while generating or if generation fails
-  const getContent = () => {
-    if (generatedContent) {
-      return {
-        title: generatedContent.title,
-        subtitle: generatedContent.subtitle,
-        description: generatedContent.description_html?.replace(/<[^>]*>/g, '') || '', // Strip HTML for textarea
-        description_html: generatedContent.description_html,
-        cta_primary: generatedContent.cta_primary,
-        cta_secondary: generatedContent.cta_secondary,
-        usp_list: generatedContent.usp_list || [],
-        badges: generatedContent.badges || []
-      };
-    }
+  // Toggle individual fields
+  const toggleField = (fieldName: string) => {
+    setFieldToggles(prev => ({
+      ...prev,
+      [fieldName]: !prev[fieldName]
+    }));
+  };
+
+  // Get original content from product
+  const getOriginalContent = () => ({
+    title: product?.title || '',
+    description: product?.description || product?.body_html?.replace(/<[^>]*>/g, '') || '',
+    ctaButton: 'Add to cart',
+    price: '€19,90' // This would come from product data in real implementation
+  });
+
+  // Get generated content
+  const getGeneratedContent = () => {
+    if (!generatedContent) return null;
     
-    // Fallback while loading
     return {
-      title: product?.title || '',
-      subtitle: '',
-      description: '',
-      description_html: '',
-      cta_primary: 'Add to Cart',
-      cta_secondary: '',
-      usp_list: [],
-      badges: []
+      title: generatedContent.title || '',
+      description: generatedContent.description_html?.replace(/<[^>]*>/g, '') || '',
+      ctaButton: generatedContent.cta_primary || 'Découvrir maintenant',
+      promotionalBadge: generatedContent.badges?.[0] || 'OFFRE SPÉCIALE'
     };
   };
 
-  const content = getContent();
+  const originalContent = getOriginalContent();
+  const aiContent = getGeneratedContent();
 
-  const startEditing = (field: string, value: string) => {
-    setEditingField(field);
-    setEditValue(value);
-  };
-
-  const saveEdit = (field: string) => {
-    const updates: Partial<NewVariantFormData> = {};
+  // Render field with toggle
+  const renderFieldComparison = (fieldName: string, label: string, originalValue: string, generatedValue?: string) => {
+    const isActive = fieldToggles[fieldName];
+    const displayValue = isActive && generatedValue ? generatedValue : originalValue;
     
-    switch (field) {
-      case 'title':
-        updates.campaign_context = editValue;
-        break;
-      case 'description':
-        updates.campaign_context = editValue;
-        break;
-      case 'cta':
-        updates.campaign_context = editValue;
-        break;
-      case 'badge':
-        updates.campaign_context = editValue;
-        break;
-    }
-    
-    onFormDataChange(updates);
-    setEditingField(null);
-    setEditValue('');
-  };
-
-  const cancelEdit = () => {
-    setEditingField(null);
-    setEditValue('');
-  };
-
-  const renderEditableField = (field: string, label: string, value: string, type: 'text' | 'textarea' = 'text') => {
-    if (editingField === field) {
-      return (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">{label}</label>
-          {type === 'textarea' ? (
-            <Textarea
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              rows={3}
-            />
-          ) : (
-            <Input
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-            />
-          )}
-          <div className="flex space-x-2">
-            <Button size="sm" onClick={() => saveEdit(field)}>
-              <Save className="h-4 w-4 mr-1" />
-              Save
-            </Button>
-            <Button size="sm" variant="outline" onClick={cancelEdit}>
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
     return (
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-gray-700">{label}</label>
-          <p className="text-sm text-gray-900 mt-1">{value}</p>
+          {generatedValue && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{isActive ? 'AI' : 'Original'}</span>
+              <Switch
+                checked={isActive}
+                onCheckedChange={() => toggleField(fieldName)}
+                size="sm"
+              />
+            </div>
+          )}
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => startEditing(field, value)}
-        >
-          <Edit3 className="h-4 w-4" />
-        </Button>
+        <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900">
+          {displayValue || 'Not available'}
+        </div>
       </div>
     );
   };
@@ -192,58 +143,70 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
         </p>
       </div>
 
-      {/* Content Review */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>Content Mapping</span>
-            {isGenerating ? (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Loader className="h-3 w-3 animate-spin" />
-                Generating...
-              </Badge>
-            ) : (
-              <Badge variant="secondary">AI Generated</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {renderEditableField('title', 'Variant Title', content.title)}
-          {content.subtitle && renderEditableField('subtitle', 'Subtitle', content.subtitle)}
-          {renderEditableField('description', 'Variant Description', content.description, 'textarea')}
-          {renderEditableField('cta_primary', 'Primary Call-to-Action', content.cta_primary)}
-          {content.cta_secondary && renderEditableField('cta_secondary', 'Secondary CTA', content.cta_secondary)}
-          
-          {/* USP List */}
-          {content.usp_list && content.usp_list.length > 0 && (
+      {/* Side-by-side Content Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Original Content */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>Original Content</span>
+              <Badge variant="outline">Shopify Page</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Key Selling Points</label>
-              <div className="mt-2 space-y-2">
-                {content.usp_list.map((usp: string, index: number) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-gray-900">{usp}</span>
-                  </div>
-                ))}
+              <label className="text-sm font-medium text-gray-700">Title</label>
+              <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900 mt-1">
+                {originalContent.title || 'Not available'}
               </div>
             </div>
-          )}
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700">Description</label>
+              <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900 mt-1">
+                {originalContent.description || 'Not available'}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700">Call-to-Action</label>
+              <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900 mt-1">
+                {originalContent.ctaButton}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700">Price</label>
+              <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900 mt-1">
+                {originalContent.price}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Badges */}
-          {content.badges && content.badges.length > 0 && (
-            <div>
-              <label className="text-sm font-medium text-gray-700">Promotional Badges</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {content.badges.map((badge: string, index: number) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {badge}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {/* Right Column - Generated Variant */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>Generated Variant</span>
+              {isGenerating ? (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Loader className="h-3 w-3 animate-spin" />
+                  Generating...
+                </Badge>
+              ) : (
+                <Badge variant="secondary">AI Generated</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {renderFieldComparison('title', 'Title', originalContent.title, aiContent?.title)}
+            {renderFieldComparison('description', 'Description', originalContent.description, aiContent?.description)}
+            {renderFieldComparison('ctaButton', 'Call-to-Action', originalContent.ctaButton, aiContent?.ctaButton)}
+            {aiContent?.promotionalBadge && renderFieldComparison('promotionalBadge', 'Promotional Badge', '', aiContent.promotionalBadge)}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Creative Analysis Summary */}
       <Card>
