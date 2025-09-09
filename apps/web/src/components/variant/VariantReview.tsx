@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Loader } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader, Save, X, Edit } from 'lucide-react';
 import { Product, Creative } from '@/types';
 import { apiService } from '@/services/api';
 
@@ -16,11 +18,13 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
   const [generatedContent, setGeneratedContent] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [fieldToggles, setFieldToggles] = useState<Record<string, boolean>>({
-    title: false,
-    description: false,
-    ctaButton: false,
-    promotionalBadge: false,
+    title: true, // Start with AI content by default
+    description: true,
+    ctaButton: true,
+    promotionalBadge: true,
   });
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
 
   if (!product || !creative) {
     return (
@@ -80,6 +84,46 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
     }));
   };
 
+  // Handle editing
+  const startEditing = (fieldName: string, currentValue: string) => {
+    setEditingField(fieldName);
+    setEditedContent(prev => ({
+      ...prev,
+      [fieldName]: currentValue
+    }));
+  };
+
+  const saveEdit = (fieldName: string) => {
+    // Update the generated content with edited value
+    if (editedContent[fieldName] && generatedContent) {
+      const updatedContent = { ...generatedContent };
+      
+      // Map field names to generated content properties
+      switch (fieldName) {
+        case 'title':
+          updatedContent.title = editedContent[fieldName];
+          break;
+        case 'description':
+          updatedContent.description_html = editedContent[fieldName];
+          break;
+        case 'ctaButton':
+          updatedContent.cta_primary = editedContent[fieldName];
+          break;
+        case 'promotionalBadge':
+          if (!updatedContent.badges) updatedContent.badges = [];
+          updatedContent.badges[0] = editedContent[fieldName];
+          break;
+      }
+      
+      setGeneratedContent(updatedContent);
+    }
+    setEditingField(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+  };
+
   // Get original content from product
   const getOriginalContent = () => ({
     title: product?.title || '',
@@ -103,29 +147,77 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
   const originalContent = getOriginalContent();
   const aiContent = getGeneratedContent();
 
-  // Render field with toggle
+  // Render field with toggle and inline editing
   const renderFieldComparison = (fieldName: string, label: string, originalValue: string, generatedValue?: string) => {
-    const isActive = fieldToggles[fieldName];
-    const displayValue = isActive && generatedValue ? generatedValue : originalValue;
+    const showAI = fieldToggles[fieldName];
+    const displayValue = showAI && generatedValue ? generatedValue : originalValue;
+    const isEditing = editingField === fieldName;
+    const currentEditValue = editedContent[fieldName] || displayValue;
     
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-gray-700">{label}</label>
-          {generatedValue && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{isActive ? 'AI' : 'Original'}</span>
-              <Switch
-                checked={isActive}
-                onCheckedChange={() => toggleField(fieldName)}
-                size="sm"
+          <div className="flex items-center gap-2">
+            {generatedValue && (
+              <>
+                <span className="text-xs text-gray-500">{showAI ? 'AI Generated' : 'Original Shopify'}</span>
+                <Switch
+                  checked={showAI}
+                  onCheckedChange={() => toggleField(fieldName)}
+                  size="sm"
+                />
+              </>
+            )}
+          </div>
+        </div>
+        
+        {isEditing ? (
+          <div className="space-y-2">
+            {fieldName === 'description' ? (
+              <Textarea
+                value={currentEditValue}
+                onChange={(e) => setEditedContent(prev => ({ ...prev, [fieldName]: e.target.value }))}
+                className="min-h-[100px]"
+                placeholder={`Enter ${label.toLowerCase()}...`}
               />
+            ) : (
+              <Input
+                value={currentEditValue}
+                onChange={(e) => setEditedContent(prev => ({ ...prev, [fieldName]: e.target.value }))}
+                placeholder={`Enter ${label.toLowerCase()}...`}
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => saveEdit(fieldName)} className="bg-green-600 hover:bg-green-700">
+                <Save className="h-3 w-3 mr-1" />
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={cancelEdit}>
+                <X className="h-3 w-3 mr-1" />
+                Cancel
+              </Button>
             </div>
-          )}
-        </div>
-        <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900">
-          {displayValue || 'Not available'}
-        </div>
+          </div>
+        ) : (
+          <div className="group relative">
+            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-900 min-h-[60px] flex items-center">
+              {displayValue || (showAI ? 'AI content will appear here...' : 'Original content not available')}
+            </div>
+            {/* Edit button - only show for AI content */}
+            {showAI && generatedValue && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => startEditing(fieldName, displayValue)}
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
