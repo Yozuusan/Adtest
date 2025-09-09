@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit3, Save, X } from 'lucide-react';
+import { Edit3, Save, X, Loader } from 'lucide-react';
 import { Product, Creative, NewVariantFormData } from '@/types';
+import { apiService } from '@/services/api';
 
 interface VariantReviewProps {
   product: Product | null;
@@ -17,6 +18,8 @@ interface VariantReviewProps {
 export function VariantReview({ product, creative, onFormDataChange }: VariantReviewProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [generatedContent, setGeneratedContent] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   if (!product || !creative) {
     return (
@@ -28,35 +31,75 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
     );
   }
 
-  // Generate initial content based on creative analysis
-  const generateContent = () => {
-    const extractedText = creative.extracted_text || '';
-    const productTitle = product.title;
+  // Generate AI content using backend API
+  const generateAIContent = async () => {
+    if (!product || !creative || !creative.file) return;
     
-    // Smart content generation based on creative analysis
-    let title = productTitle;
-    let description = '';
-    let cta = 'Add to Cart';
-    let badge = '';
+    setIsGenerating(true);
+    try {
+      const formData = new FormData();
+      formData.append('creative_file', creative.file);
+      formData.append('product_data', JSON.stringify({
+        title: product.title,
+        description: product.body_html || product.description || '',
+        product_type: product.product_type || '',
+        vendor: product.vendor || ''
+      }));
+      formData.append('variant_handle', `variant-${Date.now()}`);
+      formData.append('campaign_context', JSON.stringify({
+        reference: `campaign-${Date.now()}`
+      }));
+      formData.append('tone_of_voice', 'professional');
 
-    if (extractedText.toLowerCase().includes('anti-démangeaison') || 
-        extractedText.toLowerCase().includes('savon')) {
-      title = `🌿 ${productTitle} - Action Apaisante Naturelle`;
-      description = 'Savon naturel spécialement formulé pour apaiser les démangeaisons et irritations cutanées. Ingrédients 100% naturels, convient aux peaux sensibles.';
-      cta = '🛒 Soulager mes démangeaisons';
-      badge = '🌿 NOUVEAU - Action Apaisante';
-    } else if (extractedText.toLowerCase().includes('offre') || 
-               extractedText.toLowerCase().includes('promo')) {
-      title = `🔥 ${productTitle} - Offre Spéciale`;
-      description = 'Produit optimisé pour une expérience client exceptionnelle avec des bénéfices uniques.';
-      cta = '🛒 Découvrir maintenant';
-      badge = '✨ OFFRE SPÉCIALE';
+      const response = await apiService.generateVariant(formData);
+      console.log('🤖 Generated AI content:', response);
+      
+      if (response.success && response.data) {
+        setGeneratedContent(response.data);
+      }
+    } catch (error) {
+      console.error('❌ Error generating AI content:', error);
+    } finally {
+      setIsGenerating(false);
     }
-
-    return { title, description, cta, badge };
   };
 
-  const content = generateContent();
+  // Generate content when component mounts or when product/creative changes
+  useEffect(() => {
+    if (product && creative && creative.file && !generatedContent && !isGenerating) {
+      generateAIContent();
+    }
+  }, [product, creative, generatedContent, isGenerating]);
+
+  // Fallback content while generating or if generation fails
+  const getContent = () => {
+    if (generatedContent) {
+      return {
+        title: generatedContent.title,
+        subtitle: generatedContent.subtitle,
+        description: generatedContent.description_html?.replace(/<[^>]*>/g, '') || '', // Strip HTML for textarea
+        description_html: generatedContent.description_html,
+        cta_primary: generatedContent.cta_primary,
+        cta_secondary: generatedContent.cta_secondary,
+        usp_list: generatedContent.usp_list || [],
+        badges: generatedContent.badges || []
+      };
+    }
+    
+    // Fallback while loading
+    return {
+      title: product?.title || '',
+      subtitle: '',
+      description: '',
+      description_html: '',
+      cta_primary: 'Add to Cart',
+      cta_secondary: '',
+      usp_list: [],
+      badges: []
+    };
+  };
+
+  const content = getContent();
 
   const startEditing = (field: string, value: string) => {
     setEditingField(field);
@@ -154,14 +197,51 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span>Content Mapping</span>
-            <Badge variant="secondary">AI Generated</Badge>
+            {isGenerating ? (
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Loader className="h-3 w-3 animate-spin" />
+                Generating...
+              </Badge>
+            ) : (
+              <Badge variant="secondary">AI Generated</Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {renderEditableField('title', 'Variant Title', content.title)}
+          {content.subtitle && renderEditableField('subtitle', 'Subtitle', content.subtitle)}
           {renderEditableField('description', 'Variant Description', content.description, 'textarea')}
-          {renderEditableField('cta', 'Call-to-Action', content.cta)}
-          {renderEditableField('badge', 'Promotional Badge', content.badge)}
+          {renderEditableField('cta_primary', 'Primary Call-to-Action', content.cta_primary)}
+          {content.cta_secondary && renderEditableField('cta_secondary', 'Secondary CTA', content.cta_secondary)}
+          
+          {/* USP List */}
+          {content.usp_list && content.usp_list.length > 0 && (
+            <div>
+              <label className="text-sm font-medium text-gray-700">Key Selling Points</label>
+              <div className="mt-2 space-y-2">
+                {content.usp_list.map((usp, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-gray-900">{usp}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {content.badges && content.badges.length > 0 && (
+            <div>
+              <label className="text-sm font-medium text-gray-700">Promotional Badges</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {content.badges.map((badge, index) => (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {badge}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -190,16 +270,34 @@ export function VariantReview({ product, creative, onFormDataChange }: VariantRe
         </CardContent>
       </Card>
 
-      {/* Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">Content Optimization Tips</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Keep titles under 60 characters for better SEO</li>
-          <li>• Use action words in CTAs (e.g., "Shop Now", "Learn More")</li>
-          <li>• Include relevant keywords from your creative</li>
-          <li>• Test different messaging approaches for better conversion</li>
-        </ul>
-      </div>
+      {/* Compact Tips */}
+      <details className="bg-gray-50 border border-gray-200 rounded-lg">
+        <summary className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+          💡 Best Practices & Tips
+        </summary>
+        <div className="px-4 pb-3">
+          <ul className="text-xs text-gray-600 space-y-1 mt-2">
+            <li>• Use high-quality images for better text extraction</li>
+            <li>• Include clear, readable text in your creative</li>
+            <li>• Supported formats: JPG, PNG, WebP, PDF</li>
+            <li>• Our AI will automatically extract text and key elements</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="bg-gray-50 border border-gray-200 rounded-lg">
+        <summary className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+          🎯 How It Works
+        </summary>
+        <div className="px-4 pb-3">
+          <ul className="text-xs text-gray-600 space-y-1 mt-2">
+            <li>• Your creative is automatically analyzed for text and visual elements</li>
+            <li>• AI extracts key messages, offers, and tone from your creative</li>
+            <li>• Additional context helps refine the optimization further</li>
+            <li>• You can create variants with just Product + Creative - no extra context needed!</li>
+          </ul>
+        </div>
+      </details>
     </div>
   );
 }
