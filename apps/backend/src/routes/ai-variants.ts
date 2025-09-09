@@ -126,7 +126,7 @@ async function analyzeCreativeImage(file: Express.Multer.File): Promise<string> 
     const dataUrl = `data:${file.mimetype};base64,${base64Image}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "user",
