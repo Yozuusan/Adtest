@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Loader } from 'lucide-react';
 import { Product, Creative } from '@/types';
 import { apiService } from '@/services/api';
@@ -64,12 +65,12 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
     }
   };
 
-  // Generate content when component mounts or when product/creative changes
-  useEffect(() => {
-    if (product && creative && creative.file && !generatedContent && !isGenerating) {
-      generateAIContent();
-    }
-  }, [product, creative, generatedContent, isGenerating]);
+  // Remove automatic generation - make it manual for better UX
+  // useEffect(() => {
+  //   if (product && creative && creative.file && !generatedContent && !isGenerating) {
+  //     generateAIContent();
+  //   }
+  // }, [product, creative, generatedContent, isGenerating]);
 
   // Toggle individual fields
   const toggleField = (fieldName: string) => {
@@ -183,23 +184,74 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
         {/* Right Column - Generated Variant */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>Generated Variant</span>
-              {isGenerating ? (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Loader className="h-3 w-3 animate-spin" />
-                  Generating...
-                </Badge>
-              ) : (
-                <Badge variant="secondary">AI Generated</Badge>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span>Generated Variant</span>
+                {isGenerating ? (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Loader className="h-3 w-3 animate-spin" />
+                    Generating...
+                  </Badge>
+                ) : generatedContent ? (
+                  <Badge variant="secondary">AI Generated</Badge>
+                ) : (
+                  <Badge variant="outline">Not Generated</Badge>
+                )}
+              </div>
+              {!isGenerating && (
+                <Button 
+                  onClick={generateAIContent}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={!product || !creative}
+                >
+                  {generatedContent ? 'Regenerate' : 'Generate AI Content'}
+                </Button>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {renderFieldComparison('title', 'Title', originalContent.title, aiContent?.title)}
-            {renderFieldComparison('description', 'Description', originalContent.description, aiContent?.description)}
-            {renderFieldComparison('ctaButton', 'Call-to-Action', originalContent.ctaButton, aiContent?.ctaButton)}
-            {aiContent?.promotionalBadge && renderFieldComparison('promotionalBadge', 'Promotional Badge', '', aiContent.promotionalBadge)}
+            {!generatedContent && !isGenerating ? (
+              <div className="text-center p-8 bg-gray-50 rounded-lg">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Loader className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Ready to Generate</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Click "Generate AI Content" to create optimized variants based on your creative
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={generateAIContent}
+                    className="bg-blue-600 hover:bg-blue-700 mt-2"
+                    disabled={!product || !creative}
+                  >
+                    Generate AI Content
+                  </Button>
+                </div>
+              </div>
+            ) : isGenerating ? (
+              <div className="text-center p-8 bg-blue-50 rounded-lg">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader className="h-8 w-8 animate-spin text-blue-600" />
+                  <div>
+                    <h4 className="font-medium text-gray-900">Generating AI Content...</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Analyzing your creative and generating optimized variants
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {renderFieldComparison('title', 'Title', originalContent.title, aiContent?.title)}
+                {renderFieldComparison('description', 'Description', originalContent.description, aiContent?.description)}
+                {renderFieldComparison('ctaButton', 'Call-to-Action', originalContent.ctaButton, aiContent?.ctaButton)}
+                {aiContent?.promotionalBadge && renderFieldComparison('promotionalBadge', 'Promotional Badge', '', aiContent.promotionalBadge)}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
