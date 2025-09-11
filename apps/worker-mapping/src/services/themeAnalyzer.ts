@@ -41,7 +41,7 @@ export interface AnalysisOptions {
 }
 
 export class ThemeAnalyzerService {
-  private openai: OpenAI;
+  private openai: OpenAI | null = null;
   private defaultOptions: Required<AnalysisOptions> = {
     extract_images: true,
     extract_usp: true,
@@ -51,9 +51,20 @@ export class ThemeAnalyzerService {
   };
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    // OpenAI will be initialized lazily when first used
+  }
+
+  private getOpenAI(): OpenAI {
+    if (!this.openai) {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY environment variable is missing or empty');
+      }
+      this.openai = new OpenAI({
+        apiKey: apiKey
+      });
+    }
+    return this.openai;
   }
 
   /**
@@ -68,7 +79,7 @@ export class ThemeAnalyzerService {
 
       const prompt = this.buildAnalysisPrompt(domData, opts);
       
-      const completion = await this.openai.chat.completions.create({
+      const completion = await this.getOpenAI().chat.completions.create({
         model: 'gpt-4',
         messages: [
           {

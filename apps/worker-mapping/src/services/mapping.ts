@@ -22,15 +22,25 @@ export interface MappingJob {
 }
 
 export class MappingService {
-  private redis: Redis;
+  private redis: Redis | null = null;
 
   constructor() {
-    this.redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!
-    });
-    
-    logger.info('✅ Upstash Redis initialized for mapping service');
+    // Redis will be initialized lazily when first used
+  }
+
+  private getRedis(): Redis {
+    if (!this.redis) {
+      const url = process.env.UPSTASH_REDIS_REST_URL;
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+      
+      if (!url || !token) {
+        throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables are required');
+      }
+      
+      this.redis = new Redis({ url, token });
+      logger.info('✅ Upstash Redis initialized for mapping service');
+    }
+    return this.redis;
   }
 
   async connect(): Promise<void> {
@@ -46,7 +56,7 @@ export class MappingService {
   async updateJobStatus(jobId: string, status: string, data: any = {}): Promise<void> {
     try {
       const key = `mapping_job:${jobId}`;
-      const existingJob = await this.redis.get(key);
+      const existingJob = await this.getRedis().get(key);
       
       if (existingJob) {
         const job: MappingJob = JSON.parse(existingJob);
@@ -57,7 +67,7 @@ export class MappingService {
           ...data
         };
         
-        await this.redis.set(key, JSON.stringify(updatedJob), { ex: 86400 }); // 24 hours TTL
+        await this.getRedis().set(key, JSON.stringify(updatedJob), { ex: 86400 }); // 24 hours TTL
         logger.info(`📊 Job ${jobId} status updated to ${status}`);
       } else {
         logger.warn(`⚠️ Job ${jobId} not found for status update`);
@@ -70,7 +80,7 @@ export class MappingService {
   async getJobStatus(jobId: string): Promise<MappingJob | null> {
     try {
       const key = `mapping_job:${jobId}`;
-      const data = await this.redis.get(key);
+      const data = await this.getRedis().get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
               logger.error(`Failed to get job ${jobId} status:`, { error: String(error) });
@@ -81,11 +91,11 @@ export class MappingService {
   async getShopJobs(shopId: string, limit: number = 50): Promise<MappingJob[]> {
     try {
       const pattern = `mapping_job:*`;
-      const keys = await this.redis.keys(pattern);
+      const keys = await this.getRedis().keys(pattern);
       const jobs: MappingJob[] = [];
 
       for (const key of keys.slice(0, limit)) {
-        const data = await this.redis.get(key);
+        const data = await this.getRedis().get(key);
         if (data) {
           const job: MappingJob = JSON.parse(data);
           if (job.shop_id === shopId) {
@@ -107,7 +117,7 @@ export class MappingService {
   async cancelJob(jobId: string): Promise<boolean> {
     try {
       const key = `mapping_job:${jobId}`;
-      const existingJob = await this.redis.get(key);
+      const existingJob = await this.getRedis().get(key);
       
       if (existingJob) {
         const job: MappingJob = JSON.parse(existingJob);
@@ -117,7 +127,7 @@ export class MappingService {
           // Remove from queue if still pending
           if (job.status === 'pending') {
             const queueKey = `mapping_queue:${job.shop_id}`;
-            await this.redis.lrem(queueKey, 1, JSON.stringify(job));
+            await this.getRedis().lrem(queueKey, 1, JSON.stringify(job));
           }
           
           logger.info(`🚫 Job ${jobId} cancelled successfully`);
@@ -146,7 +156,7 @@ export class MappingService {
   }> {
     try {
       const pattern = `mapping_job:*`;
-      const keys = await this.redis.keys(pattern);
+      const keys = await this.getRedis().keys(pattern);
       const stats = {
         total: 0,
         pending: 0,
@@ -157,7 +167,7 @@ export class MappingService {
       };
 
       for (const key of keys) {
-        const data = await this.redis.get(key);
+        const data = await this.getRedis().get(key);
         if (data) {
           const job: MappingJob = JSON.parse(data);
           if (!shopId || job.shop_id === shopId) {
@@ -184,17 +194,17 @@ export class MappingService {
   async cleanupOldJobs(maxAgeHours: number = 24): Promise<number> {
     try {
       const pattern = `mapping_job:*`;
-      const keys = await this.redis.keys(pattern);
+      const keys = await this.getRedis().keys(pattern);
       const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
       let cleanedCount = 0;
 
       for (const key of keys) {
-        const data = await this.redis.get(key);
+        const data = await this.getRedis().get(key);
         if (data) {
           const job: MappingJob = JSON.parse(data);
           if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
             if (new Date(job.updated_at) < cutoff) {
-              await this.redis.del(key);
+              await this.getRedis().del(key);
               cleanedCount++;
             }
           }

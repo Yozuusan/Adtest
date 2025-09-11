@@ -11,8 +11,8 @@ import { shopifyService } from './services/shopify';
 import { themeAnalyzerService, DOMData } from './services/themeAnalyzer';
 import { logger } from './utils/logger';
 
-// Load environment variables
-config();
+// Load environment variables from the root directory
+config({ path: '../../.env' });
 
 class MappingWorker {
   private redis: Redis;

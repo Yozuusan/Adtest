@@ -11,15 +11,25 @@ export interface ThemeAdapter {
 }
 
 export class CacheService {
-  private redis: Redis;
+  private redis: Redis | null = null;
 
   constructor() {
-    this.redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!
-    });
-    
-    logger.info('✅ Upstash Redis initialized for cache service');
+    // Redis will be initialized lazily when first used
+  }
+
+  private getRedis(): Redis {
+    if (!this.redis) {
+      const url = process.env.UPSTASH_REDIS_REST_URL;
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+      
+      if (!url || !token) {
+        throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables are required');
+      }
+      
+      this.redis = new Redis({ url, token });
+      logger.info('✅ Upstash Redis initialized for cache service');
+    }
+    return this.redis;
   }
 
   async connect(): Promise<void> {
@@ -35,7 +45,7 @@ export class CacheService {
   async setThemeAdapter(shopId: string, fingerprint: string, adapter: ThemeAdapter): Promise<void> {
     try {
       const key = `adapter:${shopId}:${fingerprint}`;
-      await this.redis.set(key, JSON.stringify(adapter), { ex: 86400 * 7 }); // 7 days TTL
+      await this.getRedis().set(key, JSON.stringify(adapter), { ex: 86400 * 7 }); // 7 days TTL
       logger.info(`✅ Theme adapter cached for shop ${shopId}, fingerprint ${fingerprint}`);
     } catch (error) {
               logger.error('Failed to cache theme adapter:', { error: String(error) });
@@ -46,7 +56,7 @@ export class CacheService {
   async getThemeAdapter(shopId: string, fingerprint: string): Promise<ThemeAdapter | null> {
     try {
       const key = `adapter:${shopId}:${fingerprint}`;
-      const data = await this.redis.get(key);
+      const data = await this.getRedis().get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
               logger.error('Failed to get theme adapter:', { error: String(error) });
@@ -57,7 +67,7 @@ export class CacheService {
   async invalidateThemeAdapter(shopId: string, fingerprint: string): Promise<void> {
     try {
       const key = `adapter:${shopId}:${fingerprint}`;
-      await this.redis.del(key);
+      await this.getRedis().del(key);
       logger.info(`🗑️ Theme adapter invalidated for shop ${shopId}, fingerprint ${fingerprint}`);
     } catch (error) {
               logger.error('Failed to invalidate theme adapter:', { error: String(error) });
@@ -66,9 +76,9 @@ export class CacheService {
 
   async clearShopCache(shopId: string): Promise<void> {
     try {
-      const keys = await this.redis.keys(`adapter:${shopId}:*`);
+      const keys = await this.getRedis().keys(`adapter:${shopId}:*`);
       if (keys.length > 0) {
-        await this.redis.del(keys);
+        await this.getRedis().del(keys);
         logger.info(`🗑️ Cleared ${keys.length} theme adapters for shop ${shopId}`);
       }
     } catch (error) {
@@ -78,8 +88,8 @@ export class CacheService {
 
   async getStats(): Promise<{ totalAdapters: number; totalKeys: number }> {
     try {
-      const adapterKeys = await this.redis.keys('adapter:*');
-      const totalKeys = await this.redis.dbSize();
+      const adapterKeys = await this.getRedis().keys('adapter:*');
+      const totalKeys = await this.getRedis().dbSize();
       
       return {
         totalAdapters: adapterKeys.length,
