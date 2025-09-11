@@ -103,7 +103,12 @@ export class ShopifyService {
   /**
    * Génère l'URL d'installation OAuth
    */
-  generateInstallUrl(shop: string, userId?: string, scopes: string[] = ['read_products', 'write_products']): string {
+  generateInstallUrl(shop: string, userId?: string, scopes: string[] = [
+    'read_analytics', 'read_checkouts', 'read_customers', 'read_files', 'read_inventory', 
+    'read_locations', 'read_metaobjects', 'read_metaobject_definitions', 'read_orders', 
+    'read_product_listings', 'read_products', 'read_shipping', 'read_themes', 
+    'write_files', 'write_metaobjects', 'write_metaobject_definitions', 'write_products', 'write_themes'
+  ]): string {
     const scope = scopes.join(',');
     
     // 🔧 FIX: Utiliser la configuration centralisée des URLs
