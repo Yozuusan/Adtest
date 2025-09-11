@@ -8,7 +8,7 @@ import { config } from 'dotenv';
 import { cacheService } from './services/cache';
 import { mappingService } from './services/mapping';
 import { shopifyService } from './services/shopify';
-import { themeAnalyzerService, DOMData } from './services/themeAnalyzer';
+import { getThemeAnalyzerService, DOMData } from './services/themeAnalyzer';
 import { logger } from './utils/logger';
 
 // Load environment variables from the root directory
@@ -187,7 +187,7 @@ class MappingWorker {
       await this.updateJobStatus(id, 'running', { progress: 70 });
 
       // Generate theme adapter using OpenAI
-      const themeAdapter = await themeAnalyzerService.generateThemeAdapter(domData, options);
+      const themeAdapter = await getThemeAnalyzerService().generateThemeAdapter(domData, options);
       
       await this.updateJobStatus(id, 'running', { progress: 90 });
 

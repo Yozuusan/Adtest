@@ -168,7 +168,7 @@ export class ShopifyService {
         throw createError('Shop not authenticated', 401);
     }
 
-      const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json?namespace=adlign_data&key=settings`;
+      const url = `https://${shop}/admin/api/2024-07/products/${productId}/metafields.json?namespace=adlign_data&key=settings`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -220,7 +220,7 @@ export class ShopifyService {
       if (existingSettings) {
         // Mettre à jour le metafield existant
         const metafieldId = await this.getMetafieldId(shop, productId, 'adlign_data', 'settings');
-        url = `https://${shop}/admin/api/2024-01/metafields.json`;
+        url = `https://${shop}/admin/api/2024-07/metafields.json`;
         method = 'PUT';
         payload = {
           metafield: {
@@ -229,7 +229,7 @@ export class ShopifyService {
       };
     } else {
         // Créer un nouveau metafield
-        url = `https://${shop}/admin/api/2024-01/metafields.json`;
+        url = `https://${shop}/admin/api/2024-07/metafields.json`;
         method = 'POST';
         payload = {
           metafield: {
@@ -309,7 +309,7 @@ export class ShopifyService {
         throw createError('Shop not authenticated', 401);
     }
       
-      const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json?namespace=${namespace}&key=${key}`;
+      const url = `https://${shop}/admin/api/2024-07/products/${productId}/metafields.json?namespace=${namespace}&key=${key}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -348,7 +348,7 @@ export class ShopifyService {
         throw createError('Shop not authenticated', 401);
     }
 
-      const url = `https://${shop}/admin/api/2024-01/metafields.json`;
+      const url = `https://${shop}/admin/api/2024-07/metafields.json`;
       const payload = {
         metafield: {
           namespace: 'adlign_data',
@@ -399,7 +399,7 @@ export class ShopifyService {
         throw createError('Shop not authenticated', 401);
       }
 
-      const url = `https://${shop}/admin/api/2024-01/files.json`;
+      const url = `https://${shop}/admin/api/2024-07/files.json`;
       const payload = {
         file: {
           url: fileUrl,
@@ -473,26 +473,30 @@ export class ShopifyService {
     }
 
     const query = `
-      query getMetaobject($handle: String!) {
-        metaobject(handle: {handle: $handle, type: "adlign_variant"}) {
-          id
-          handle
-          fields {
-            key
-            value
+      query getMetaobjectByHandle($type: String!, $handle: String!) {
+        metaobjects(type: $type, first: 1, query: $handle) {
+          edges {
+            node {
+              id
+              handle
+              fields {
+                key
+                value
+              }
+            }
           }
         }
       }
     `;
 
     try {
-      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
         },
-        body: JSON.stringify({ query, variables: { handle } }),
+        body: JSON.stringify({ query, variables: { type: "adlign_variant", handle } }),
       });
 
       const result = await response.json() as any;
@@ -502,9 +506,11 @@ export class ShopifyService {
         return null;
       }
 
-      const metaobject = result.data?.metaobject;
-      if (!metaobject) return null;
+      const metaobjects = result.data?.metaobjects?.edges || [];
+      if (metaobjects.length === 0) return null;
 
+      const metaobject = metaobjects[0].node;
+      
       // Convertir les fields en objet
       const fieldsObj: any = {};
       metaobject.fields.forEach((field: any) => {
@@ -549,7 +555,7 @@ export class ShopifyService {
     `;
 
     try {
-      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -587,6 +593,125 @@ export class ShopifyService {
   }
 
   /**
+   * Récupère les produits avec l'API GraphQL moderne (remplace l'API REST dépréciée)
+   */
+  async getProducts(shop: string, query: string = '', limit: number = 20): Promise<any[]> {
+    const token = await this.getToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const graphQLQuery = `
+      query getProducts($first: Int!, $query: String) {
+        products(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              handle
+              title
+              status
+              createdAt
+              updatedAt
+              productType
+              vendor
+              tags
+              featuredImage {
+                id
+                url
+                altText
+              }
+              priceRange {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+                maxVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+              variants(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    price
+                    compareAtPrice
+                    sku
+                    inventoryQuantity
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query: graphQLQuery, 
+          variables: { 
+            first: limit,
+            query: query || null
+          }
+        }),
+      });
+
+      const result = await response.json() as any;
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return [];
+      }
+
+      const products = result.data?.products?.edges || [];
+      
+      return products.map((edge: any) => {
+        const node = edge.node;
+        return {
+          id: node.id.replace('gid://shopify/Product/', ''), // Extract numeric ID
+          gid: node.id,
+          handle: node.handle,
+          title: node.title,
+          status: node.status,
+          created_at: node.createdAt,
+          updated_at: node.updatedAt,
+          product_type: node.productType,
+          vendor: node.vendor,
+          tags: node.tags,
+          featured_image: node.featuredImage ? {
+            id: node.featuredImage.id,
+            src: node.featuredImage.url,
+            alt: node.featuredImage.altText
+          } : null,
+          variants: node.variants.edges.map((variantEdge: any) => {
+            const variant = variantEdge.node;
+            return {
+              id: variant.id.replace('gid://shopify/ProductVariant/', ''),
+              gid: variant.id,
+              title: variant.title,
+              price: variant.price,
+              compare_at_price: variant.compareAtPrice,
+              sku: variant.sku,
+              inventory_quantity: variant.inventoryQuantity
+            };
+          })
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+  }
+
+  /**
    * Supprimer un variant par handle
    */
   async deleteVariantByHandle(shop: string, handle: string): Promise<boolean> {
@@ -611,7 +736,7 @@ export class ShopifyService {
     `;
 
     try {
-      const response = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -668,7 +793,7 @@ export class ShopifyService {
         }
       `;
 
-      const checkResponse = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+      const checkResponse = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -717,7 +842,7 @@ export class ShopifyService {
         }
       };
 
-      const createResponse = await fetch(`https://${shop}/admin/api/2024-01/graphql.json`, {
+      const createResponse = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

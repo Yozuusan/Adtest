@@ -293,4 +293,11 @@ Focus on selectors with confidence >= ${options.confidence_threshold}.`;
   }
 }
 
-export const themeAnalyzerService = new ThemeAnalyzerService();
+let themeAnalyzerServiceInstance: ThemeAnalyzerService | null = null;
+
+export function getThemeAnalyzerService(): ThemeAnalyzerService {
+  if (!themeAnalyzerServiceInstance) {
+    themeAnalyzerServiceInstance = new ThemeAnalyzerService();
+  }
+  return themeAnalyzerServiceInstance;
+}
