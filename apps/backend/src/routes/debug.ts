@@ -465,4 +465,74 @@ router.get('/auth', async (req, res) => {
   }
 });
 
+/**
+ * DANGER: Supprimer complètement un shop de la base pour forcer réinstallation OAuth
+ * DELETE /debug/reset-shop?shop=store.myshopify.com
+ */
+router.delete('/reset-shop', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🗑️ DANGER: Resetting shop completely for OAuth reinstall: ${shop}`);
+
+    // 1. Clear Redis cache
+    const redisKey = KEY(shop);
+    const redisDeleted = await redis.del(redisKey);
+
+    // 2. Delete from Supabase - Get shop info first
+    const shopData = await supabaseService.getShopByDomain(shop);
+    if (!shopData) {
+      return res.json({
+        shop,
+        message: 'Shop not found in database',
+        redis_cleared: redisDeleted > 0
+      });
+    }
+
+    // 3. Delete user_shop associations
+    const { error: userShopError } = await supabaseService.getClient()
+      .from('user_shops')
+      .delete()
+      .eq('shop_id', shopData.id);
+
+    // 4. Delete shop record
+    const { error: shopError } = await supabaseService.getClient()
+      .from('shops')
+      .delete()
+      .eq('id', shopData.id);
+
+    if (userShopError || shopError) {
+      console.error('❌ Database deletion errors:', { userShopError, shopError });
+      return res.status(500).json({
+        error: 'Database deletion failed',
+        userShopError: userShopError?.message,
+        shopError: shopError?.message
+      });
+    }
+
+    console.log(`✅ Shop ${shop} completely reset - ready for fresh OAuth installation`);
+
+    res.json({
+      shop,
+      message: `Shop ${shop} completely removed - OAuth can now reinstall with new scopes`,
+      actions: {
+        redis_cleared: redisDeleted > 0,
+        user_shop_associations_deleted: true,
+        shop_record_deleted: true
+      },
+      next_step: `Visit /oauth/install?shop=${shop}&user_id=USER_ID for fresh installation`
+    });
+
+  } catch (error) {
+    console.error('❌ Reset shop error:', error);
+    res.status(500).json({
+      error: 'Reset shop failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
