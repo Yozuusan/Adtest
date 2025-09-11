@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { createError } from '../middleware/errorHandler';
 import { getShopToken } from '../services/tokens';
 import { supabaseService } from '../services/supabase';
+import { shopifyService } from '../services/shopify';
 import OpenAI from 'openai';
 import multer from 'multer';
 import { z } from 'zod';
@@ -349,31 +350,16 @@ async function saveCustomBrandInfo(shop: string, brandInfo: any): Promise<any> {
 }
 
 /**
- * Récupérer les produits d'une boutique
+ * Récupérer les produits d'une boutique (GraphQL)
  */
 async function getShopProducts(shop: string): Promise<any[]> {
   try {
-    // Utiliser getShopToken pour récupérer les produits
-    const token = await getShopToken(shop);
-    if (!token) {
-      throw createError('Shop not authenticated', 401);
-    }
-
-    const apiUrl = `https://${shop}/admin/api/2024-01/products.json?limit=50&fields=id,title,handle,product_type,vendor,tags,body_html,images`;
+    console.log(`🛍️ Fetching shop products for brand analysis: ${shop} (GraphQL)`);
     
-    const response = await fetch(apiUrl, {
-      headers: {
-        'X-Shopify-Access-Token': token.access_token,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Shopify API error: ${response.status}`);
-    }
-
-    const data = await response.json() as any;
-    return data.products || [];
+    // Utiliser le service Shopify modernisé avec GraphQL
+    const products = await shopifyService.getProducts(shop, '', 50);
+    
+    return products;
   } catch (error) {
     console.error('❌ Error fetching shop products:', error);
     if (error instanceof Error && error.message === 'Shop not authenticated') {

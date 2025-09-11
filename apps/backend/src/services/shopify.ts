@@ -717,6 +717,138 @@ export class ShopifyService {
   }
 
   /**
+   * Récupérer un produit spécifique par ID (GraphQL)
+   */
+  async getProduct(shop: string, productId: string): Promise<any | null> {
+    const token = await this.getToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const graphQLQuery = `
+      query getProduct($id: ID!) {
+        product(id: $id) {
+          id
+          handle
+          title
+          description
+          descriptionHtml
+          status
+          createdAt
+          updatedAt
+          productType
+          vendor
+          tags
+          images(first: 50) {
+            edges {
+              node {
+                id
+                url
+                altText
+                width
+                height
+              }
+            }
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+            maxVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          variants(first: 50) {
+            edges {
+              node {
+                id
+                title
+                price
+                compareAtPrice
+                sku
+                inventoryQuantity
+                selectedOptions {
+                  name
+                  value
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({
+          query: graphQLQuery,
+          variables: { id: `gid://shopify/Product/${productId}` },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Shopify GraphQL API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json() as any;
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return null;
+      }
+
+      const product = result.data?.product;
+      if (!product) return null;
+
+      return {
+        id: product.id.replace('gid://shopify/Product/', ''),
+        gid: product.id,
+        handle: product.handle,
+        title: product.title,
+        description: product.description,
+        description_html: product.descriptionHtml,
+        status: product.status,
+        created_at: product.createdAt,
+        updated_at: product.updatedAt,
+        product_type: product.productType,
+        vendor: product.vendor,
+        tags: product.tags,
+        images: product.images.edges.map((edge: any) => ({
+          id: edge.node.id,
+          src: edge.node.url,
+          alt: edge.node.altText,
+          width: edge.node.width,
+          height: edge.node.height
+        })),
+        variants: product.variants.edges.map((edge: any) => {
+          const variant = edge.node;
+          return {
+            id: variant.id.replace('gid://shopify/ProductVariant/', ''),
+            gid: variant.id,
+            title: variant.title,
+            price: variant.price,
+            compare_at_price: variant.compareAtPrice,
+            sku: variant.sku,
+            inventory_quantity: variant.inventoryQuantity,
+            selected_options: variant.selectedOptions
+          };
+        }),
+        product_url: `https://${shop}/products/${product.handle}`
+      };
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+  }
+
+  /**
    * Supprimer un variant par handle
    */
   async deleteVariantByHandle(shop: string, handle: string): Promise<boolean> {
