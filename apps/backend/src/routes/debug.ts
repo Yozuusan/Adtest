@@ -327,6 +327,42 @@ router.get('/users', async (req, res) => {
 });
 
 /**
+ * Forcer la suppression du token en cache Redis
+ * DELETE /debug/clear-token?shop=store.myshopify.com
+ */
+router.delete('/clear-token', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🗑️ Clearing cached token for ${shop}`);
+
+    const key = KEY(shop);
+    const existed = await redis.get(key);
+    const deleteResult = await redis.del(key);
+
+    console.log(`✅ Token cleared for ${shop}:`, { existed: !!existed, deleted: deleteResult });
+
+    res.json({
+      shop,
+      key,
+      token_existed: !!existed,
+      deleted: deleteResult > 0,
+      timestamp: new Date().toISOString(),
+      message: `Token cache cleared for ${shop}`
+    });
+  } catch (error) {
+    console.error('❌ Error clearing token cache:', error);
+    res.status(500).json({
+      error: 'Failed to clear token cache',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Diagnostic d'authentification pour un utilisateur
  * GET /debug/auth?user_id=user_uuid
  */
