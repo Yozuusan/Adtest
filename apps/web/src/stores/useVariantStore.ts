@@ -83,15 +83,20 @@ export const useVariantStore = create<VariantStore>((set, get) => ({
       set({ isLoading: true, error: null });
       const response = await apiService.getVariants(shop);
       
-      // Handle different response formats - defensive programming
+      // Handle different response formats - defensive programming  
       let variants: Variant[] = [];
       if (Array.isArray(response)) {
         variants = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        variants = response.data;
-      } else if (response?.variants && Array.isArray(response.variants)) {
-        variants = response.variants;
-      } else {
+      } else if (response && typeof response === 'object') {
+        const responseObj = response as any;
+        if (responseObj.data && Array.isArray(responseObj.data)) {
+          variants = responseObj.data;
+        } else if (responseObj.variants && Array.isArray(responseObj.variants)) {
+          variants = responseObj.variants;
+        }
+      }
+      
+      if (!Array.isArray(variants)) {
         console.warn('⚠️ Unexpected variants response format:', response);
         variants = [];
       }
