@@ -66,11 +66,10 @@ export interface SupabaseThemeAdapter {
 
 export interface SupabaseAdlignVariant {
   id: string;
-  shop: string; // Changé de 'shop_domain' à 'shop'
+  shop_domain: string; // Reverted back to match actual database schema
   product_gid: string;
   variant_handle: string;
-  content_json: any; // Changé de 'variant_data' à 'content_json'
-  campaign_ref?: string;
+  variant_data: any; // Reverted back to match actual database schema
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -401,7 +400,13 @@ export class SupabaseService {
     try {
       const { data, error } = await this.client
         .from('adlign_variants')
-        .insert(variant)
+        .insert({
+          shop_domain: variant.shop_domain,
+          product_gid: variant.product_gid,
+          variant_handle: variant.variant_handle,
+          variant_data: variant.variant_data,
+          is_active: variant.is_active
+        })
         .select()
         .single();
 
@@ -519,7 +524,7 @@ export class SupabaseService {
       const { data, error } = await this.client
         .from('adlign_variants')
         .select('*')
-        .eq('shop', shopDomain)
+        .eq('shop_domain', shopDomain)
         .eq('product_gid', productGid)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -540,7 +545,7 @@ export class SupabaseService {
       const { error } = await this.client
         .from('adlign_variants')
         .delete()
-        .eq('shop', shopDomain)
+        .eq('shop_domain', shopDomain)
         .eq('product_gid', productGid)
         .eq('variant_handle', variantHandle);
 

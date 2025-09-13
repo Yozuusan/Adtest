@@ -1,4 +1,4 @@
-import { Monitor, Smartphone, Eye, Loader2 } from 'lucide-react';
+import { Monitor, Smartphone, Eye, Loader2, ExternalLink, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,15 @@ interface VariantPreviewProps {
   creative: Creative | null;
   formData: Partial<NewVariantFormData>;
   isGenerating: boolean;
+  generatedVariant?: {
+    handle: string;
+    shopifyUrl: string;
+    backendUrl: string;
+  } | null;
 }
 
-export function VariantPreview({ product, creative, formData, isGenerating }: VariantPreviewProps) {
-  const hasAllSteps = product && creative && formData.campaign_context;
+export function VariantPreview({ product, creative, formData, isGenerating, generatedVariant }: VariantPreviewProps) {
+  const hasAllSteps = product && creative;
 
   return (
     <Card className="sticky top-6">
@@ -81,8 +86,65 @@ export function VariantPreview({ product, creative, formData, isGenerating }: Va
               </div>
             </div>
           </div>
+        ) : generatedVariant ? (
+          /* Variant Generated Successfully */
+          <div className="text-center py-6">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-4">
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Eye className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-green-900 font-medium mb-2">Variant Generated Successfully!</p>
+              <p className="text-sm text-green-700">
+                Your variant "{generatedVariant.handle}" is ready to view
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.open(generatedVariant.shopifyUrl, '_blank')}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View Live Variant
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => window.open(generatedVariant.backendUrl, '_blank')}
+              >
+                <Monitor className="mr-2 h-4 w-4" />
+                Preview Backend
+              </Button>
+              
+              <div className="pt-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full text-gray-600"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedVariant.shopifyUrl);
+                  }}
+                >
+                  <Copy className="mr-2 h-3 w-3" />
+                  Copy Shopify URL
+                </Button>
+              </div>
+            </div>
+            
+            {/* Variant Info */}
+            <div className="bg-gray-50 rounded-lg p-3 mt-4 text-xs text-left">
+              <div className="font-medium text-gray-900 mb-2">Variant Details:</div>
+              <div className="space-y-1 text-gray-600">
+                <div>Handle: {generatedVariant.handle}</div>
+                <div>Product: {product?.title}</div>
+                <div>Status: Active</div>
+              </div>
+            </div>
+          </div>
         ) : (
-          /* Generated Preview */
+          /* Default Preview State */
           <div className="space-y-4">
             {/* Device Tabs */}
             <div className="flex border-b border-gray-200">

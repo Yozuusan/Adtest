@@ -30,6 +30,11 @@ export function NewVariant() {
   const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
   const [formData, setFormData] = useState<Partial<NewVariantFormData>>({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedVariant, setGeneratedVariant] = useState<{
+    handle: string;
+    shopifyUrl: string;
+    backendUrl: string;
+  } | null>(null);
 
   const canProceedToStep = (step: number) => {
     switch (step) {
@@ -153,13 +158,18 @@ export function NewVariant() {
       // Save to localStorage for the preview page
       localStorage.setItem('currentVariant', JSON.stringify(previewData));
       
-      console.log('🎉 Variant creation complete! Redirecting to variants list...');
+      console.log('🎉 Variant creation complete!');
       console.log('📄 Snippet URL:', backendSnippetUrl);
       console.log('🛒 Shopify URL:', shopifyVariantUrl);
       
-      // Show success message and navigate to variants list
-      alert(`✅ Variant "${variantHandle}" created successfully!\n\n📄 Snippet URL: ${backendSnippetUrl}\n🛒 Shopify URL: ${shopifyVariantUrl}`);
-      navigate('/variants');
+      // Update state to show success in Live Preview panel
+      setGeneratedVariant({
+        handle: variantHandle,
+        shopifyUrl: shopifyVariantUrl,
+        backendUrl: backendSnippetUrl
+      });
+      
+      setIsGenerating(false);
       
     } catch (error) {
       console.error('❌ Error generating variant:', error);
@@ -299,6 +309,7 @@ export function NewVariant() {
             creative={selectedCreative}
             formData={formData}
             isGenerating={isGenerating}
+            generatedVariant={generatedVariant}
           />
         </div>
       </div>
