@@ -153,16 +153,18 @@ export function NewVariant() {
       // Save to localStorage for the preview page
       localStorage.setItem('currentVariant', JSON.stringify(previewData));
       
-      console.log('🎉 Variant creation complete! Redirecting to preview...');
+      console.log('🎉 Variant creation complete! Redirecting to variants list...');
       console.log('📄 Snippet URL:', backendSnippetUrl);
       console.log('🛒 Shopify URL:', shopifyVariantUrl);
       
-      // Navigate to the preview/review page with success
-      navigate(`/variants/preview/${variantHandle}`);
+      // Show success message and navigate to variants list
+      alert(`✅ Variant "${variantHandle}" created successfully!\n\n📄 Snippet URL: ${backendSnippetUrl}\n🛒 Shopify URL: ${shopifyVariantUrl}`);
+      navigate('/variants');
       
     } catch (error) {
       console.error('❌ Error generating variant:', error);
-      // TODO: Show error toast/notification to user
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`❌ Failed to generate variant: ${errorMessage}\n\nPlease try again or contact support.`);
       setIsGenerating(false);
     }
   };

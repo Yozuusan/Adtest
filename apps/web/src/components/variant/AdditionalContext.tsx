@@ -62,16 +62,6 @@ export function AdditionalContext({ formData, onFormDataChange }: AdditionalCont
         </div>
       )}
 
-      {/* Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">How It Works</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Your creative is automatically analyzed for text and visual elements</li>
-          <li>• AI extracts key messages, offers, and tone from your creative</li>
-          <li>• Additional context helps refine the optimization further</li>
-          <li>• You can create variants with just Product + Creative - no extra context needed!</li>
-        </ul>
-      </div>
     </div>
   );
 }

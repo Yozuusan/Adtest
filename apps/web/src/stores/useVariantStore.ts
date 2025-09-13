@@ -81,10 +81,26 @@ export const useVariantStore = create<VariantStore>((set, get) => ({
   fetchVariants: async (shop: string) => {
     try {
       set({ isLoading: true, error: null });
-      const variants = await apiService.getVariants(shop);
+      const response = await apiService.getVariants(shop);
+      
+      // Handle different response formats - defensive programming
+      let variants: Variant[] = [];
+      if (Array.isArray(response)) {
+        variants = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        variants = response.data;
+      } else if (response?.variants && Array.isArray(response.variants)) {
+        variants = response.variants;
+      } else {
+        console.warn('⚠️ Unexpected variants response format:', response);
+        variants = [];
+      }
+      
       set({ variants, isLoading: false });
     } catch (error) {
+      console.error('❌ Error fetching variants:', error);
       set({ 
+        variants: [], // Ensure variants is always an array
         error: error instanceof Error ? error.message : 'Failed to fetch variants',
         isLoading: false 
       });
@@ -157,7 +173,7 @@ export const useVariantStore = create<VariantStore>((set, get) => ({
   // Local Actions
   addVariant: (variant) =>
     set((state) => ({
-      variants: [variant, ...state.variants],
+      variants: [variant, ...(Array.isArray(state.variants) ? state.variants : [])],
     })),
 
   removeVariant: (id) =>
