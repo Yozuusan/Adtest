@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Target, Loader } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,8 +7,14 @@ import { Input } from '@/components/ui/input';
 import { useVariantStore } from '@/stores/useVariantStore';
 
 export function Variants() {
-  const { variants, isLoading, error } = useVariantStore();
+  const { variants, isLoading, error, fetchVariants } = useVariantStore();
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch variants when component mounts
+  useEffect(() => {
+    const shop = localStorage.getItem('shopDomain') || 'adlign.myshopify.com';
+    fetchVariants(shop);
+  }, [fetchVariants]);
 
   // Defensive check - ensure variants is an array before filtering
   const safeVariants = Array.isArray(variants) ? variants : [];

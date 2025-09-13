@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -69,12 +69,12 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
     }
   };
 
-  // Remove automatic generation - make it manual for better UX
-  // useEffect(() => {
-  //   if (product && creative && creative.file && !generatedContent && !isGenerating) {
-  //     generateAIContent();
-  //   }
-  // }, [product, creative, generatedContent, isGenerating]);
+  // Automatic generation when product and creative are available
+  useEffect(() => {
+    if (product && creative && creative.file && !generatedContent && !isGenerating) {
+      generateAIContent();
+    }
+  }, [product, creative, generatedContent, isGenerating]);
 
   // Toggle individual fields
   const toggleField = (fieldName: string) => {
@@ -290,16 +290,6 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
                   <Badge variant="outline">Not Generated</Badge>
                 )}
               </div>
-              {!isGenerating && (
-                <Button 
-                  onClick={generateAIContent}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={!product || !creative}
-                >
-                  {generatedContent ? 'Regenerate' : 'Generate AI Content'}
-                </Button>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -310,18 +300,11 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
                     <Loader className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">Ready to Generate</h4>
+                    <h4 className="font-medium text-gray-900">Preparing to Generate</h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      Click "Generate AI Content" to create optimized variants based on your creative
+                      AI content generation will start automatically when your creative is ready
                     </p>
                   </div>
-                  <Button 
-                    onClick={generateAIContent}
-                    className="bg-blue-600 hover:bg-blue-700 mt-2"
-                    disabled={!product || !creative}
-                  >
-                    Generate AI Content
-                  </Button>
                 </div>
               </div>
             ) : isGenerating ? (
@@ -373,34 +356,6 @@ export function VariantReview({ product, creative }: VariantReviewProps) {
         </CardContent>
       </Card>
 
-      {/* Compact Tips */}
-      <details className="bg-gray-50 border border-gray-200 rounded-lg">
-        <summary className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
-          💡 Best Practices & Tips
-        </summary>
-        <div className="px-4 pb-3">
-          <ul className="text-xs text-gray-600 space-y-1 mt-2">
-            <li>• Use high-quality images for better text extraction</li>
-            <li>• Include clear, readable text in your creative</li>
-            <li>• Supported formats: JPG, PNG, WebP, PDF</li>
-            <li>• Our AI will automatically extract text and key elements</li>
-          </ul>
-        </div>
-      </details>
-
-      <details className="bg-gray-50 border border-gray-200 rounded-lg">
-        <summary className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
-          🎯 How It Works
-        </summary>
-        <div className="px-4 pb-3">
-          <ul className="text-xs text-gray-600 space-y-1 mt-2">
-            <li>• Your creative is automatically analyzed for text and visual elements</li>
-            <li>• AI extracts key messages, offers, and tone from your creative</li>
-            <li>• Additional context helps refine the optimization further</li>
-            <li>• You can create variants with just Product + Creative - no extra context needed!</li>
-          </ul>
-        </div>
-      </details>
     </div>
   );
 }

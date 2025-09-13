@@ -10,6 +10,7 @@ import { VariantPreview } from '@/components/variant/VariantPreview';
 import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Product, Creative, NewVariantFormData } from '@/types';
 import { apiService } from '@/services/api';
+import { useVariantStore } from '@/stores/useVariantStore';
 
 const STEPS = [
   { id: 1, title: 'Select Product', description: 'Choose your Shopify product' },
@@ -23,6 +24,7 @@ const STEPS = [
 
 export function NewVariant() {
   const navigate = useNavigate();
+  const { addVariant } = useVariantStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
@@ -117,6 +119,19 @@ export function NewVariant() {
 
       const saveResponse = await apiService.createVariant(variantData);
       console.log('✅ Variant saved:', saveResponse);
+
+      // Add the variant to the store so it appears in the Variants tab
+      const newVariant = {
+        id: saveResponse.data?.id || variantHandle,
+        variant_handle: variantHandle,
+        product_title: selectedProduct.title,
+        product_id: selectedProduct.id,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        ...saveResponse.data
+      };
+      addVariant(newVariant);
+      console.log('✅ Variant added to store:', newVariant);
 
       // Step 3: Generate URLs and navigate
       const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';

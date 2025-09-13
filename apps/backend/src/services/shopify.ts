@@ -696,6 +696,8 @@ export class ShopifyService {
             src: node.featuredImage.url,
             alt: node.featuredImage.altText
           } : null,
+          image_url: node.featuredImage?.url || null, // Add compatibility for frontend
+          product_url: `https://${shop}/products/${node.handle}`, // Add Shopify product URL
           variants: node.variants.edges.map((variantEdge: any) => {
             const variant = variantEdge.node;
             return {
