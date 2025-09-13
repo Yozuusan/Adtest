@@ -27,30 +27,32 @@ router.post('/', async (req, res, next) => {
       throw createError('Shop not authenticated. Please install the app first.', 401);
     }
 
-    // S'assurer que la définition de metaobject existe
-    await shopifyService.ensureMetaobjectDefinition(shop);
-
-    // Créer le metaobject avec le contenu du variant
-    const metaobject = await shopifyService.createOrUpdateMetaobject(
-      shop,
-      'adlign_variant',
-      [
-        { key: 'product_gid', value: product_gid },
-        { key: 'handle', value: handle || `variant_${Date.now()}` },
-        { key: 'content_json', value: JSON.stringify(content_json) },
-        { key: 'created_at', value: new Date().toISOString() }
-      ],
-      handle
+    // Générer le handle du variant s'il n'est pas fourni
+    const variantHandle = handle || `variant_${Date.now()}`;
+    
+    // Sauvegarder le variant dans les metafields du produit (solution rapide MVP)
+    const productId = product_gid;
+    const saved = await shopifyService.setProductMetafield(
+      shop, 
+      productId, 
+      'adlign', 
+      variantHandle, 
+      JSON.stringify(content_json)
     );
 
-    console.log(`✅ Variant created for shop ${shop}: ${metaobject.handle}`);
+    if (!saved) {
+      throw createError('Failed to save variant to product metafields', 500);
+    }
+
+    console.log(`✅ Variant saved in metafields for shop ${shop}: ${variantHandle}`);
 
     res.status(201).json({
       success: true,
       data: {
-        metaobject_id: metaobject.id,
-        handle: metaobject.handle,
+        handle: variantHandle,
         shop,
+        product_id: productId,
+        storage_type: 'metafields',
         created_at: new Date().toISOString()
       }
     });
@@ -78,8 +80,8 @@ router.get('/:handle', async (req, res, next) => {
       throw createError('Shop not authenticated', 401);
     }
 
-    // Récupérer le variant metaobject depuis Shopify
-    const variant = await shopifyService.getVariantByHandle(shop, handle);
+    // Récupérer le variant depuis les metafields du produit (approche MVP)
+    const variant = await shopifyService.getVariantByHandleFromMetafields(shop, handle);
     
     if (!variant) {
       throw createError(`Variant '${handle}' not found for shop ${shop}`, 404);
@@ -90,8 +92,9 @@ router.get('/:handle', async (req, res, next) => {
       data: {
         handle: variant.handle,
         shop,
-        content: variant.content_json ? JSON.parse(variant.content_json) : null,
+        content: variant.content_json,
         product_gid: variant.product_gid,
+        storage_type: variant.storage_type,
         created_at: variant.created_at,
         retrieved_at: new Date().toISOString()
       }

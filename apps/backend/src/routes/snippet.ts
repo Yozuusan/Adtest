@@ -191,28 +191,13 @@ router.get('/', async (req, res, next) => {
       // Vérifier l'authentification pour les vraies données
       const isAuthenticated = await shopifyService.isShopAuthenticated(shop);
       if (isAuthenticated) {
-        // Méthode 1: Chercher dans les metaobjects (nouveau système)
-        realVariantData = await shopifyService.getVariantByHandle(shop, av);
+        // Nouvelle approche MVP: Chercher directement dans les metafields
+        realVariantData = await shopifyService.getVariantByHandleFromMetafields(shop, av);
         if (realVariantData && realVariantData.content_json) {
-          variantContent = JSON.parse(realVariantData.content_json);
-          console.log(`✅ Real variant data loaded from metaobject for ${av}`);
+          variantContent = realVariantData.content_json;
+          console.log(`✅ Real variant data loaded from metafields for ${av}`);
         } else {
-          console.log(`⚠️ No metaobject found for ${av}, checking metafields...`);
-          // Méthode 2: Chercher dans les metafields de produit (ancien système)
-          try {
-            // Essayer de récupérer depuis les metafields en utilisant l'ancien format
-            const products = await shopifyService.getProducts(shop, '', 250); // Get more products
-            for (const product of products) {
-              const settings = await shopifyService.getProductAdlignSettings(shop, parseInt(product.id));
-              if (settings && settings[av]) {
-                variantContent = settings[av];
-                console.log(`✅ Real variant data loaded from metafields for ${av}`);
-                break;
-              }
-            }
-          } catch (metafieldError) {
-            console.log(`⚠️ Could not load from metafields for ${av}:`, metafieldError);
-          }
+          console.log(`⚠️ No variant found in metafields for ${av}`);
         }
       }
     } catch (error) {

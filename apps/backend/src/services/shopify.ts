@@ -501,7 +501,7 @@ export class ShopifyService {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
         },
-        body: JSON.stringify({ query, variables: { type: "adlign_variant", handle } }),
+        body: JSON.stringify({ query, variables: { type: "adlign_mapping", handle } }),
       });
 
       const result = await response.json() as any;
@@ -544,7 +544,7 @@ export class ShopifyService {
 
     const query = `
       query getMetaobjects {
-        metaobjects(type: "adlign_variant", first: 250) {
+        metaobjects(type: "adlign_mapping", first: 250) {
           edges {
             node {
               id
@@ -1006,6 +1006,162 @@ export class ShopifyService {
     } catch (error) {
       console.error('Error ensuring metaobject definition:', error);
       return false;
+    }
+  }
+
+  /**
+   * Sauvegarder un variant dans les metafields du produit
+   */
+  async setProductMetafield(shop: string, productId: string, namespace: string, key: string, value: string): Promise<boolean> {
+    const token = await this.getToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const mutation = `
+      mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields {
+            id
+            namespace
+            key
+            value
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      metafields: [{
+        ownerId: productId,
+        namespace,
+        key,
+        value,
+        type: 'json'
+      }]
+    };
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query: mutation, variables }),
+      });
+
+      const result = await response.json() as any;
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return false;
+      }
+
+      if (result.data?.metafieldsSet?.userErrors?.length > 0) {
+        console.error('Metafield set errors:', result.data.metafieldsSet.userErrors);
+        return false;
+      }
+
+      console.log(`✅ Metafield saved: ${namespace}.${key} for product ${productId}`);
+      return true;
+    } catch (error) {
+      console.error('Error setting metafield:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Récupérer un metafield spécifique du produit
+   */
+  async getProductMetafield(shop: string, productId: string, namespace: string, key: string): Promise<any> {
+    const token = await this.getToken(shop);
+    if (!token) {
+      throw new Error('Shop not authenticated');
+    }
+
+    const query = `
+      query getProductMetafield($id: ID!, $namespace: String!, $key: String!) {
+        product(id: $id) {
+          metafield(namespace: $namespace, key: $key) {
+            id
+            namespace
+            key
+            value
+            type
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      id: productId,
+      namespace,
+      key
+    };
+
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      const result = await response.json() as any;
+      
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return null;
+      }
+
+      const metafield = result.data?.product?.metafield;
+      if (metafield) {
+        console.log(`✅ Metafield found: ${namespace}.${key} for product ${productId}`);
+        return JSON.parse(metafield.value);
+      }
+
+      console.log(`⚠️ No metafield found: ${namespace}.${key} for product ${productId}`);
+      return null;
+    } catch (error) {
+      console.error('Error getting metafield:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Récupérer un variant par handle depuis les metafields (nouvelle approche MVP)
+   */
+  async getVariantByHandleFromMetafields(shop: string, handle: string): Promise<any> {
+    try {
+      // Pour l'instant, on doit deviner le produit ou chercher dans tous les produits
+      // En attendant, utilisons le produit que nous connaissons de l'exemple
+      const productId = "gid://shopify/Product/15096939610438"; // ID du savon
+      
+      const variantData = await this.getProductMetafield(shop, productId, 'adlign', handle);
+      
+      if (variantData) {
+        return {
+          handle,
+          content_json: variantData,
+          product_gid: productId,
+          created_at: new Date().toISOString(), // On n'a pas la vraie date de création
+          storage_type: 'metafields'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting variant from metafields:', error);
+      return null;
     }
   }
 

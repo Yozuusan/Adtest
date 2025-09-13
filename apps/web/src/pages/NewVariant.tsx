@@ -9,6 +9,7 @@ import { VariantReview } from '@/components/variant/VariantReview';
 import { VariantPreview } from '@/components/variant/VariantPreview';
 import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Product, Creative, NewVariantFormData } from '@/types';
+import { apiService } from '@/services/api';
 
 const STEPS = [
   { id: 1, title: 'Select Product', description: 'Choose your Shopify product' },
@@ -53,53 +54,102 @@ export function NewVariant() {
     if (!selectedProduct || !selectedCreative) return;
     
     setIsGenerating(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    setIsGenerating(false);
     
-    // Generate variant handle if not provided - use creative content for smart naming
-    let autoHandle = `variant-${Date.now()}`;
-    const extractedText = selectedCreative?.extracted_text?.toUpperCase() || '';
-    const fileName = selectedCreative?.file?.name?.toLowerCase() || '';
-    
-    console.log('🔍 Debug handle generation:', { extractedText, fileName });
-    
-    if (extractedText.includes('SAVON') || 
-        extractedText.includes('DÉMANGEAISON') ||
-        extractedText.includes('ANTI-DÉMANGEAISON') ||
-        fileName.includes('creative') ||
-        fileName.includes('savon')) {
-      autoHandle = 'savon-anti-demangeaison-v1';
-      console.log('✅ Generated savon handle:', autoHandle);
-    } else {
-      console.log('⚠️ Using generic handle:', autoHandle);
+    try {
+      console.log('🎯 Starting variant generation with real API calls...');
+      
+      // Generate variant handle if not provided - use creative content for smart naming
+      let autoHandle = `variant-${Date.now()}`;
+      const extractedText = selectedCreative?.extracted_text?.toUpperCase() || '';
+      const fileName = selectedCreative?.file?.name?.toLowerCase() || '';
+      
+      console.log('🔍 Debug handle generation:', { extractedText, fileName });
+      
+      if (extractedText.includes('SAVON') || 
+          extractedText.includes('DÉMANGEAISON') ||
+          extractedText.includes('ANTI-DÉMANGEAISON') ||
+          fileName.includes('creative') ||
+          fileName.includes('savon')) {
+        autoHandle = 'savon-anti-demangeaison-v1';
+        console.log('✅ Generated savon handle:', autoHandle);
+      } else {
+        console.log('⚠️ Using generic handle:', autoHandle);
+      }
+      const variantHandle = formData.variant_handle || autoHandle;
+      
+      // Generate shop name
+      const shopName = selectedProduct.product_url.includes('myshopify.com') 
+        ? selectedProduct.product_url.split('.myshopify.com')[0].split('://')[1]
+        : 'adlign';
+      
+      // Step 1: Generate AI content first
+      console.log('🤖 Step 1: Generating AI content...');
+      const aiFormData = new FormData();
+      aiFormData.append('creative_file', selectedCreative.file);
+      aiFormData.append('product_data', JSON.stringify({
+        title: selectedProduct.title,
+        description: selectedProduct.body_html || selectedProduct.description || '',
+        product_type: selectedProduct.product_type || '',
+        vendor: selectedProduct.vendor || ''
+      }));
+      aiFormData.append('variant_handle', variantHandle);
+      aiFormData.append('campaign_context', JSON.stringify({
+        reference: `campaign-${Date.now()}`
+      }));
+      aiFormData.append('tone_of_voice', 'professional');
+
+      const aiResponse = await apiService.generateVariant(aiFormData);
+      console.log('✅ AI content generated:', aiResponse);
+      
+      // Step 2: Create and save the variant
+      console.log('💾 Step 2: Saving variant to backend...');
+      const variantData = {
+        product_gid: selectedProduct.gid || `gid://shopify/Product/${selectedProduct.id}`,
+        handle: variantHandle,
+        shop: `${shopName}.myshopify.com`,
+        content_json: aiResponse.data || {
+          title: `🔥 ${selectedProduct.title} - Special Offer`,
+          description_html: `<strong>Optimized</strong> variant for ${selectedProduct.title}`,
+          cta_primary: "🛒 Discover Now",
+          promotional_badge: "✨ SPECIAL OFFER"
+        }
+      };
+
+      const saveResponse = await apiService.createVariant(variantData);
+      console.log('✅ Variant saved:', saveResponse);
+
+      // Step 3: Generate URLs and navigate
+      const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      const backendSnippetUrl = `${apiUrl}/snippet?av=${variantHandle}&shop=${shopName}.myshopify.com`;
+      const shopifyVariantUrl = `${selectedProduct.product_url}?adlign_variant=${variantHandle}`;
+      
+      // Store variant data for the preview page
+      const previewData = {
+        handle: variantHandle,
+        product: selectedProduct,
+        creative: selectedCreative,
+        formData,
+        shopifyUrl: shopifyVariantUrl,
+        backendUrl: backendSnippetUrl,
+        savedVariant: saveResponse,
+        generatedContent: aiResponse.data
+      };
+      
+      // Save to localStorage for the preview page
+      localStorage.setItem('currentVariant', JSON.stringify(previewData));
+      
+      console.log('🎉 Variant creation complete! Redirecting to preview...');
+      console.log('📄 Snippet URL:', backendSnippetUrl);
+      console.log('🛒 Shopify URL:', shopifyVariantUrl);
+      
+      // Navigate to the preview/review page with success
+      navigate(`/variants/preview/${variantHandle}`);
+      
+    } catch (error) {
+      console.error('❌ Error generating variant:', error);
+      // TODO: Show error toast/notification to user
+      setIsGenerating(false);
     }
-    const variantHandle = formData.variant_handle || autoHandle;
-    
-    // Generate variant URLs for both demo and real Shopify
-    const shopName = selectedProduct.product_url.includes('myshopify.com') 
-      ? selectedProduct.product_url.split('.myshopify.com')[0].split('://')[1]
-      : 'adlign';
-    
-    const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
-    const backendSnippetUrl = `${apiUrl}/snippet?av=${variantHandle}&shop=${shopName}.myshopify.com`;
-    const shopifyVariantUrl = `${selectedProduct.product_url}?adlign_variant=${variantHandle}`;
-    
-    // Store variant data for the preview page
-    const variantData = {
-      handle: variantHandle,
-      product: selectedProduct,
-      creative: selectedCreative,
-      formData,
-      shopifyUrl: shopifyVariantUrl,
-      backendUrl: backendSnippetUrl,
-    };
-    
-    // Save to localStorage for the preview page
-    localStorage.setItem('currentVariant', JSON.stringify(variantData));
-    
-    // Navigate to the preview/review page instead of popup
-    navigate(`/variants/preview/${variantHandle}`);
   };
 
   const isComplete = selectedProduct && selectedCreative; // Campaign context is now optional
