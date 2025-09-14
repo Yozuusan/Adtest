@@ -23,7 +23,7 @@ router.get('/', async (req, res, next) => {
     console.log(`🛍️ Fetching products for ${shop}, search: "${search}" (GraphQL)`);
 
     // Utiliser le service Shopify modernisé avec GraphQL
-    const products = await shopifyService.getProducts(shop as string, search as string, Number(limit));
+    const products = await shopifyService.getProducts(shop as string, Number(limit));
 
     res.json({
       success: true,

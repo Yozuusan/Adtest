@@ -230,15 +230,13 @@ router.put('/:handle', async (req, res, next) => {
     }
 
     // Mettre à jour le metaobject
-    const metaobject = await shopifyService.createOrUpdateMetaobject(
-      shop,
-      'adlign_variant',
-      [
-        { key: 'content_json', value: JSON.stringify(content_json) },
-        { key: 'updated_at', value: new Date().toISOString() }
-      ],
-      handle
-    );
+    const metaobject = await shopifyService.createOrUpdateMetaobject(shop, {
+      handle: handle,
+      fields: {
+        content_json: JSON.stringify(content_json),
+        updated_at: new Date().toISOString()
+      }
+    });
 
     console.log(`✅ Variant updated for shop ${shop}: ${metaobject.handle}`);
 

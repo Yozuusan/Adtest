@@ -1,0 +1,486 @@
+{% comment %}
+  Adlign Product Template with Metaobject Integration
+  Based on Horizon theme structure with dynamic content replacement
+  
+  This template integrates with Adlign metaobjects to dynamically replace:
+  - Product title
+  - Product description
+  - CTA buttons
+  - Hero images
+  - USP lists
+  - Badges
+  
+  Usage: ?adlign_variant=variant-handle in URL
+{% endcomment %}
+
+{% comment %} Get metaobject variant data {% endcomment %}
+{% assign adlign_variant = request.query_string | split: 'adlign_variant=' | last | split: '&' | first %}
+{% if adlign_variant and adlign_variant != '' %}
+  {% assign variant_metaobject = shop.metaobjects['adlign_variant'][adlign_variant] %}
+  {% if variant_metaobject %}
+    {% assign content_json = variant_metaobject.content_json.value | parse_json %}
+  {% endif %}
+{% endif %}
+
+{% comment %} Set dynamic content variables with fallbacks {% endcomment %}
+{% if content_json %}
+  {% assign dynamic_title = content_json.title | default: product.title %}
+  {% assign dynamic_subtitle = content_json.subtitle %}
+  {% assign dynamic_description = content_json.description_html | default: product.description %}
+  {% assign dynamic_hero_image = content_json.hero_image %}
+  {% assign dynamic_usp_list = content_json.usp_list %}
+  {% assign dynamic_cta_primary = content_json.cta_primary | default: 'Add to cart' %}
+  {% assign dynamic_cta_secondary = content_json.cta_secondary %}
+  {% assign dynamic_badges = content_json.badges %}
+{% else %}
+  {% assign dynamic_title = product.title %}
+  {% assign dynamic_description = product.description %}
+  {% assign dynamic_cta_primary = 'Add to cart' %}
+{% endif %}
+
+<div class="page-width">
+  <div class="product product--{{ section.settings.media_size }} product--{{ section.settings.media_position }} {% if product.media.size == 0 %}product--no-media{% endif %}">
+    
+    <div class="product__media-wrapper">
+      {% comment %} Hero Image Section with Dynamic Content {% endcomment %}
+      <div class="product__media">
+        {% if dynamic_hero_image and content_json %}
+          {% comment %} Use dynamic hero image from metaobject {% endcomment %}
+          <div class="product__media-item" data-adlign-field="hero_image">
+            <img src="{{ dynamic_hero_image | img_url: 'master' }}" 
+                 alt="{{ dynamic_title | escape }}"
+                 loading="lazy"
+                 class="product__image">
+          </div>
+        {% elsif product.featured_media %}
+          {% comment %} Use original product featured media {% endcomment %}
+          <div class="product__media-item">
+            {{ product.featured_media | image_url: width: 1946 | image_tag:
+              loading: 'lazy',
+              sizes: sizes,
+              widths: '246, 493, 600, 713, 823, 990, 1100, 1206, 1346, 1426, 1646, 1946',
+              class: 'product__image'
+            }}
+          </div>
+        {% endif %}
+        
+        {% comment %} Additional product media gallery {% endcomment %}
+        {% if product.media.size > 1 %}
+          <div class="product__media-gallery">
+            {% for media in product.media limit: 4 %}
+              {% unless forloop.first %}
+                <div class="product__media-item product__media-item--small">
+                  {% case media.media_type %}
+                    {% when 'image' %}
+                      {{ media | image_url: width: 246 | image_tag:
+                        loading: 'lazy',
+                        class: 'product__image product__image--small'
+                      }}
+                    {% when 'video' %}
+                      <video class="product__video" controls>
+                        <source src="{{ media.sources[0].url }}" type="{{ media.sources[0].mime_type }}">
+                      </video>
+                  {% endcase %}
+                </div>
+              {% endunless %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="product__info">
+      {% comment %} Dynamic Badges {% endcomment %}
+      {% if dynamic_badges and content_json %}
+        <div class="product__badges" data-adlign-field="badges">
+          {% for badge in dynamic_badges %}
+            <span class="badge badge--{{ badge | handle }}">{{ badge }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% comment %} Dynamic Product Title {% endcomment %}
+      <h1 class="product__title h1" data-adlign-field="title">
+        {{ dynamic_title }}
+      </h1>
+
+      {% comment %} Dynamic Subtitle {% endcomment %}
+      {% if dynamic_subtitle and content_json %}
+        <p class="product__subtitle h4" data-adlign-field="subtitle">
+          {{ dynamic_subtitle }}
+        </p>
+      {% endif %}
+
+      {% comment %} Price Information {% endcomment %}
+      <div class="product__price">
+        {% render 'price', product: product, use_variant: true, show_badges: true, price_class: 'price--large' %}
+      </div>
+
+      {% comment %} Dynamic Product Description {% endcomment %}
+      {% if dynamic_description != blank %}
+        <div class="product__description rte" data-adlign-field="description">
+          {{ dynamic_description }}
+        </div>
+      {% endif %}
+
+      {% comment %} Dynamic USP List {% endcomment %}
+      {% if dynamic_usp_list and content_json %}
+        <div class="product__usp-list" data-adlign-field="usp_list">
+          <ul class="list-unstyled">
+            {% for usp in dynamic_usp_list %}
+              <li class="product__usp-item">
+                <span class="product__usp-icon">✓</span>
+                {{ usp }}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% comment %} Variant Picker {% endcomment %}
+      {% unless product.has_only_default_variant %}
+        <variant-radios class="no-js-hidden" data-section="{{ section.id }}" data-url="{{ product.url }}">
+          {% for option in product.options_with_values %}
+            <fieldset class="js product-form__input">
+              <legend class="form__label">{{ option.name }}</legend>
+              {% render 'product-variant-options', product: product, option: option, block: block %}
+            </fieldset>
+          {% endfor %}
+          <script type="application/json">
+            {{ product.variants | json }}
+          </script>
+        </variant-radios>
+      {% endunless %}
+
+      {% comment %} Quantity and Add to Cart {% endcomment %}
+      <div class="product-form">
+        <form action="{{ routes.cart_add_url }}" method="post" enctype="multipart/form-data" id="product-form-{{ section.id }}" class="form">
+          <div class="product-form__buttons">
+            {% comment %} Quantity Selector {% endcomment %}
+            <div class="product-form__quantity">
+              <label class="form__label" for="Quantity-{{ section.id }}">
+                {{ 'products.product.quantity.label' | t }}
+              </label>
+              <quantity-input class="quantity">
+                <button class="quantity__button no-js-hidden" name="minus" type="button">
+                  <span class="visually-hidden">{{ 'products.product.quantity.decrease' | t: product: product.title | escape }}</span>
+                  {% render 'icon-minus' %}
+                </button>
+                <input class="quantity__input"
+                  type="number"
+                  name="quantity"
+                  id="Quantity-{{ section.id }}"
+                  min="1"
+                  value="1"
+                  form="product-form-{{ section.id }}">
+                <button class="quantity__button no-js-hidden" name="plus" type="button">
+                  <span class="visually-hidden">{{ 'products.product.quantity.increase' | t: product: product.title | escape }}</span>
+                  {% render 'icon-plus' %}
+                </button>
+              </quantity-input>
+            </div>
+
+            {% comment %} Dynamic Primary CTA Button {% endcomment %}
+            <button type="submit" 
+                    name="add" 
+                    class="btn product-form__cart-submit btn--full-width"
+                    data-adlign-field="cta_primary"
+                    {% if product.selected_or_first_available_variant.available == false %}disabled{% endif %}>
+              <span>
+                {% if product.selected_or_first_available_variant.available %}
+                  {{ dynamic_cta_primary }}
+                {% else %}
+                  {{ 'products.product.sold_out' | t }}
+                {% endif %}
+              </span>
+              <div class="loading-overlay__spinner hidden">
+                {% render 'icon-spinner' %}
+              </div>
+            </button>
+
+            {% comment %} Dynamic Secondary CTA Button {% endcomment %}
+            {% if dynamic_cta_secondary and content_json %}
+              <button type="button" 
+                      class="btn btn--secondary product-form__secondary-cta btn--full-width"
+                      data-adlign-field="cta_secondary">
+                {{ dynamic_cta_secondary }}
+              </button>
+            {% endif %}
+          </div>
+
+          {% comment %} Hidden product variant input {% endcomment %}
+          <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+        </form>
+      </div>
+
+      {% comment %} Product Features/Details Tabs {% endcomment %}
+      {% if product.metafields.custom.features != blank or product.metafields.custom.specifications != blank %}
+        <div class="product__tabs">
+          <div class="tabs">
+            {% if product.metafields.custom.features != blank %}
+              <details class="tab">
+                <summary class="tab__header">
+                  <span class="tab__title">{{ 'products.product.features' | t | default: 'Features' }}</span>
+                  {% render 'icon-caret' %}
+                </summary>
+                <div class="tab__content rte">
+                  {{ product.metafields.custom.features }}
+                </div>
+              </details>
+            {% endif %}
+
+            {% if product.metafields.custom.specifications != blank %}
+              <details class="tab">
+                <summary class="tab__header">
+                  <span class="tab__title">{{ 'products.product.specifications' | t | default: 'Specifications' }}</span>
+                  {% render 'icon-caret' %}
+                </summary>
+                <div class="tab__content rte">
+                  {{ product.metafields.custom.specifications }}
+                </div>
+              </details>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% comment %} Share buttons {% endcomment %}
+      {% if section.settings.enable_sharing %}
+        {% render 'share-button', block: block %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% comment %} Include Adlign metaobject injector for dynamic functionality {% endcomment %}
+{% render 'adlign_metaobject_injector' %}
+
+{% comment %} JSON-LD structured data {% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "http://schema.org/",
+  "@type": "Product",
+  "name": {{ dynamic_title | json }},
+  "url": {{ shop.url | append: product.url | json }},
+  {% if product.featured_media -%}
+    "image": [
+      {{ product.featured_media | image_url: width: 1920 | prepend: "https:" | json }}
+    ],
+  {%- endif %}
+  "description": {{ dynamic_description | strip_html | json }},
+  {% if product.selected_or_first_available_variant -%}
+    "sku": {{ product.selected_or_first_available_variant.sku | json }},
+    "offers": [
+      {
+        "@type": "Offer",
+        "availability": "http://schema.org/{% if product.selected_or_first_available_variant.available %}InStock{% else %}OutOfStock{% endif %}",
+        "price": {{ product.selected_or_first_available_variant.price | divided_by: 100.00 | json }},
+        "priceCurrency": {{ cart.currency.iso_code | json }},
+        "url": {{ shop.url | append: product.selected_or_first_available_variant.url | json }}
+      }
+    ]
+  {%- endif %}
+}
+</script>
+
+{% comment %} Custom CSS for dynamic elements {% endcomment %}
+<style>
+  .product__badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: #f0f0f0;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .badge--black-friday {
+    background: #e74c3c;
+    color: white;
+  }
+  
+  .badge--promo {
+    background: #f39c12;
+    color: white;
+  }
+  
+  .product__subtitle {
+    margin-bottom: 1rem;
+    color: #666;
+    font-weight: 400;
+  }
+  
+  .product__usp-list {
+    margin: 1.5rem 0;
+  }
+  
+  .product__usp-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .product__usp-icon {
+    display: inline-block;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.75rem;
+    background: #27ae60;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 1.2rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+  
+  .product-form__secondary-cta {
+    margin-top: 0.75rem;
+  }
+  
+  .tabs {
+    margin-top: 2rem;
+  }
+  
+  .tab {
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .tab__header {
+    padding: 1rem 0;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+  }
+  
+  .tab__content {
+    padding-bottom: 1rem;
+  }
+  
+  /* Debug mode styling for Adlign fields */
+  [data-adlign-field] {
+    position: relative;
+  }
+  
+  .shopify-section--design-mode [data-adlign-field]::before {
+    content: "Adlign: " attr(data-adlign-field);
+    position: absolute;
+    top: -1.5rem;
+    left: 0;
+    font-size: 0.7rem;
+    background: rgba(39, 174, 96, 0.8);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    z-index: 10;
+  }
+  
+  /* Animation for dynamic content changes */
+  [data-adlign-field][data-adlign-updated="true"] {
+    animation: adlignHighlight 2s ease-out;
+  }
+  
+  @keyframes adlignHighlight {
+    0% { 
+      background-color: rgba(39, 174, 96, 0.2);
+      transform: scale(1.01);
+    }
+    100% { 
+      background-color: transparent;
+      transform: scale(1);
+    }
+  }
+  
+  /* Responsive adjustments */
+  @media screen and (max-width: 749px) {
+    .product {
+      display: block;
+    }
+    
+    .product__media-wrapper {
+      margin-bottom: 2rem;
+    }
+    
+    .product__media-gallery {
+      display: flex;
+      overflow-x: auto;
+      gap: 0.5rem;
+      padding: 1rem 0;
+    }
+    
+    .product__media-item--small {
+      flex-shrink: 0;
+      width: 80px;
+      height: 80px;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Adlign Product Template",
+  "settings": [
+    {
+      "type": "select",
+      "id": "media_size",
+      "options": [
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "medium",
+          "label": "Medium"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        }
+      ],
+      "default": "medium",
+      "label": "Media size"
+    },
+    {
+      "type": "select",
+      "id": "media_position",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "left",
+      "label": "Media position"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sharing",
+      "default": true,
+      "label": "Enable sharing"
+    },
+    {
+      "type": "header",
+      "content": "Adlign Integration"
+    },
+    {
+      "type": "paragraph",
+      "content": "This template automatically integrates with Adlign metaobjects. Use ?adlign_variant=handle in the URL to test dynamic content replacement."
+    }
+  ]
+}
+{% endschema %}

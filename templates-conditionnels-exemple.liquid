@@ -1,0 +1,234 @@
+{% comment %}
+  EXEMPLE: Template Conditionnel
+  Un seul fichier product.adlign.liquid qui s'adapte selon le contenu
+{% endcomment %}
+
+{% comment %} Récupérer les données du metaobject {% endcomment %}
+{% assign adlign_variant = request.query_string | split: 'adlign_variant=' | last | split: '&' | first %}
+{% assign variant_metaobject = shop.metaobjects['adlign_variant'][adlign_variant] %}
+{% assign content_json = variant_metaobject.content_json.value | parse_json %}
+
+{% comment %} Détecter le type de layout demandé {% endcomment %}
+{% assign layout_type = content_json.layout_type | default: 'standard' %}
+
+<div class="adlign-product-wrapper">
+  
+  {% comment %} === LAYOUT HERO PRODUCT === {% endcomment %}
+  {% if layout_type == 'hero-product' %}
+    
+    <!-- Hero Section avec grande image -->
+    {% if content_json.hero_image %}
+      <div class="hero-section" style="background-image: url('{{ content_json.hero_image }}')">
+        <div class="hero-overlay">
+          <h1 class="hero-title">{{ content_json.title }}</h1>
+          {% if content_json.subtitle %}
+            <p class="hero-subtitle">{{ content_json.subtitle }}</p>
+          {% endif %}
+          {% if content_json.cta_primary %}
+            <button class="hero-cta-primary">{{ content_json.cta_primary }}</button>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- Badges Premium -->
+    {% if content_json.badges %}
+      <div class="premium-badges">
+        {% for badge in content_json.badges %}
+          <span class="badge badge-premium">{{ badge }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+    
+    <!-- USP List Détaillée -->
+    {% if content_json.usp_list %}
+      <div class="usp-section-detailed">
+        {% for usp in content_json.usp_list %}
+          <div class="usp-item-detailed">
+            <span class="usp-icon">✨</span>
+            <span class="usp-text">{{ usp }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    
+    <!-- Description Longue -->
+    <div class="description-detailed">
+      {{ content_json.description_html }}
+    </div>
+    
+    <!-- Double CTA -->
+    <div class="cta-section-double">
+      {% if content_json.cta_primary %}
+        <button class="cta-primary-large">{{ content_json.cta_primary }}</button>
+      {% endif %}
+      {% if content_json.cta_secondary %}
+        <button class="cta-secondary-large">{{ content_json.cta_secondary }}</button>
+      {% endif %}
+    </div>
+  
+  {% comment %} === LAYOUT UPSELL SIMPLE === {% endcomment %}
+  {% elsif layout_type == 'upsell' %}
+    
+    <!-- Titre Simple -->
+    <h2 class="upsell-title">{{ content_json.title }}</h2>
+    
+    <!-- Prix Highlight -->
+    {% if content_json.price_highlight %}
+      <div class="price-highlight">{{ content_json.price_highlight }}</div>
+    {% endif %}
+    
+    <!-- Description Courte -->
+    {% if content_json.description_html %}
+      <div class="description-short">{{ content_json.description_html }}</div>
+    {% endif %}
+    
+    <!-- CTA Simple -->
+    {% if content_json.cta_primary %}
+      <button class="cta-upsell-simple">{{ content_json.cta_primary }}</button>
+    {% endif %}
+  
+  {% comment %} === LAYOUT BUNDLE COMPARISON === {% endcomment %}
+  {% elsif layout_type == 'bundle' %}
+    
+    <h1 class="bundle-title">{{ content_json.title }}</h1>
+    
+    <!-- Table de Comparaison -->
+    {% if content_json.comparison_table %}
+      <div class="comparison-table">
+        <table>
+          {% for row in content_json.comparison_table %}
+            <tr>
+              <td>{{ row.feature }}</td>
+              <td>{{ row.individual }}</td>
+              <td class="bundle-highlight">{{ row.bundle }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% endif %}
+    
+    <!-- Multi CTAs -->
+    <div class="multi-cta-section">
+      {% if content_json.cta_primary %}
+        <button class="cta-bundle-primary">{{ content_json.cta_primary }}</button>
+      {% endif %}
+      {% if content_json.cta_secondary %}
+        <button class="cta-bundle-secondary">{{ content_json.cta_secondary }}</button>
+      {% endif %}
+      {% if content_json.cta_tertiary %}
+        <button class="cta-bundle-tertiary">{{ content_json.cta_tertiary }}</button>
+      {% endif %}
+    </div>
+  
+  {% comment %} === LAYOUT STANDARD === {% endcomment %}
+  {% else %}
+    
+    <!-- Layout Standard par défaut -->
+    <h1 class="standard-title">{{ content_json.title | default: product.title }}</h1>
+    
+    {% if content_json.description_html %}
+      <div class="standard-description">{{ content_json.description_html }}</div>
+    {% endif %}
+    
+    {% if content_json.cta_primary %}
+      <button class="standard-cta">{{ content_json.cta_primary }}</button>
+    {% endif %}
+    
+  {% endif %}
+  
+</div>
+
+{% comment %} CSS Conditionnel selon le layout {% endcomment %}
+<style>
+  {% if layout_type == 'hero-product' %}
+    .hero-section { 
+      height: 500px; 
+      background-size: cover; 
+      position: relative; 
+    }
+    .hero-overlay { 
+      background: rgba(0,0,0,0.4); 
+      height: 100%; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      color: white; 
+    }
+    .premium-badges .badge { 
+      background: gold; 
+      color: black; 
+      padding: 8px 16px; 
+      margin: 5px; 
+    }
+    .usp-section-detailed .usp-item-detailed { 
+      display: flex; 
+      align-items: center; 
+      margin: 15px 0; 
+      font-size: 18px; 
+    }
+    .cta-section-double { 
+      display: flex; 
+      gap: 20px; 
+      justify-content: center; 
+    }
+    .cta-primary-large { 
+      background: #e74c3c; 
+      color: white; 
+      padding: 15px 30px; 
+      font-size: 18px; 
+    }
+    
+  {% elsif layout_type == 'upsell' %}
+    .upsell-title { 
+      font-size: 24px; 
+      text-align: center; 
+    }
+    .price-highlight { 
+      background: #f39c12; 
+      color: white; 
+      padding: 10px; 
+      text-align: center; 
+      font-weight: bold; 
+    }
+    .cta-upsell-simple { 
+      width: 100%; 
+      background: #27ae60; 
+      color: white; 
+      padding: 12px; 
+    }
+    
+  {% elsif layout_type == 'bundle' %}
+    .comparison-table table { 
+      width: 100%; 
+      border-collapse: collapse; 
+    }
+    .comparison-table td { 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      text-align: center; 
+    }
+    .bundle-highlight { 
+      background: #2ecc71; 
+      color: white; 
+      font-weight: bold; 
+    }
+    .multi-cta-section { 
+      display: flex; 
+      gap: 10px; 
+      flex-wrap: wrap; 
+    }
+    
+  {% else %}
+    .standard-title { 
+      font-size: 28px; 
+    }
+    .standard-cta { 
+      background: #3498db; 
+      color: white; 
+      padding: 10px 20px; 
+    }
+    
+  {% endif %}
+</style>

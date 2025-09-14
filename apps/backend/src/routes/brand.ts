@@ -357,7 +357,7 @@ async function getShopProducts(shop: string): Promise<any[]> {
     console.log(`🛍️ Fetching shop products for brand analysis: ${shop} (GraphQL)`);
     
     // Utiliser le service Shopify modernisé avec GraphQL
-    const products = await shopifyService.getProducts(shop, '', 50);
+    const products = await shopifyService.getProducts(shop, 50);
     
     return products;
   } catch (error) {

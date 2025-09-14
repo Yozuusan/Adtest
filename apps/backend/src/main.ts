@@ -36,6 +36,7 @@ import brandRoutes from './routes/brand';
 import userShopsRoutes from './routes/user-shops';
 import installRoutes from './routes/install';
 import debugFrontendRoutes from './routes/debug-frontend';
+import templatesRoutes from './routes/templates';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -94,6 +95,7 @@ app.use('/brand', brandRoutes);
 app.use('/user-shops', userShopsRoutes);
 app.use('/install', installRoutes);
 app.use('/debug-frontend', debugFrontendRoutes);
+app.use('/templates', templatesRoutes);
 
 // Route API directe pour le micro-kernel (évite les problèmes de routage)
 app.get('/api/variant-data', async (req, res) => {
@@ -108,7 +110,14 @@ app.get('/api/variant-data', async (req, res) => {
 
     // Générer des données de variant réalistes selon le handle
     let variantContent;
-    if (String(av).includes('savon') || String(av).includes('anti-demangeaison')) {
+    if (String(av) === 'test-workflow-1757780000') {
+      // Content specific for the test case
+      variantContent = {
+        title: "🧼 Savon Anti-Démangeaisons PREMIUM",
+        description_html: "Formule révolutionnaire pour apaiser instantanément les démangeaisons. Testé dermatologiquement.",
+        cta_primary: "🛒 Commander Maintenant - OFFRE LIMITÉE",
+      };
+    } else if (String(av).includes('savon') || String(av).includes('anti-demangeaison')) {
       variantContent = {
         title: "🌿 SAVON ANTI-DÉMANGEAISON - Soulagement Naturel",
         description_html: "<strong>Nouveau !</strong> Savon naturel spécialement formulé pour apaiser les démangeaisons et irritations cutanées. <br><br>✨ <strong>Bénéfices :</strong><br>• Soulage instantanément les démangeaisons<br>• Ingrédients 100% naturels<br>• Convient aux peaux sensibles<br>• Action apaisante longue durée",

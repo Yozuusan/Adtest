@@ -3,6 +3,7 @@ import { normalizeShopDomain } from '../utils/shop';
 import { Redis } from '@upstash/redis';
 import { getShopToken } from '../services/tokens';
 import { supabaseService } from '../services/supabase';
+import { shopifyService } from '../services/shopify';
 
 const router = Router();
 const redis = new Redis({
@@ -530,6 +531,341 @@ router.delete('/reset-shop', async (req, res) => {
     console.error('❌ Reset shop error:', error);
     res.status(500).json({
       error: 'Reset shop failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Vérifier si le snippet Adlign est déployé sur un shop
+ * GET /debug/check-snippet?shop=store.myshopify.com
+ */
+router.get('/check-snippet', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🔍 Checking Adlign snippet deployment for ${shop}`);
+
+    const status = await shopifyService.isAdlignSnippetDeployed(shop);
+
+    res.json({
+      shop,
+      timestamp: new Date().toISOString(),
+      snippet_status: status,
+      message: status.deployed 
+        ? 'Adlign snippet is deployed and ready'
+        : `Adlign snippet missing: ${status.missingFiles?.join(', ')}`
+    });
+  } catch (error) {
+    console.error('❌ Error checking snippet:', error);
+    res.status(500).json({
+      error: 'Failed to check snippet deployment',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Déployer automatiquement le snippet Adlign sur un shop
+ * POST /debug/deploy-snippet?shop=store.myshopify.com
+ */
+router.post('/deploy-snippet', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🚀 Deploying Adlign snippet to ${shop}`);
+
+    const deployment = await shopifyService.deployAdlignSnippet(shop);
+
+    if (deployment.success) {
+      res.json({
+        shop,
+        timestamp: new Date().toISOString(),
+        deployment,
+        message: `Adlign snippet deployed successfully! Files: ${deployment.deployedFiles?.join(', ') || 'already installed'}`
+      });
+    } else {
+      res.status(500).json({
+        shop,
+        timestamp: new Date().toISOString(),
+        deployment,
+        error: 'Deployment failed',
+        message: deployment.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error deploying snippet:', error);
+    res.status(500).json({
+      error: 'Failed to deploy snippet',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Auto-déployer le snippet si nécessaire (appelé lors de création de variante)
+ * POST /debug/auto-deploy-snippet?shop=store.myshopify.com
+ */
+router.post('/auto-deploy-snippet', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🔧 Auto-deploying Adlign snippet if needed for ${shop}`);
+
+    const success = await shopifyService.autoDeploySnippetIfNeeded(shop);
+
+    res.json({
+      shop,
+      timestamp: new Date().toISOString(),
+      auto_deploy: {
+        success,
+        message: success 
+          ? 'Snippet is deployed and ready' 
+          : 'Auto-deployment failed'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in auto-deployment:', error);
+    res.status(500).json({
+      error: 'Auto-deployment failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Deploy a template file to Shopify theme
+ * POST /debug/deploy-template
+ */
+router.post('/deploy-template', async (req, res) => {
+  try {
+    const { shop, template_key, file_path, template_content } = req.body;
+    
+    if (!shop) {
+      return res.status(400).json({ error: 'shop_required' });
+    }
+    
+    if (!template_key) {
+      return res.status(400).json({ error: 'template_key_required' });
+    }
+    
+    const normalizedShop = normalizeShopDomain(shop);
+    
+    let content: string;
+    
+    // If template_content is provided directly, use it
+    if (template_content) {
+      content = template_content;
+      console.log(`🚀 Deploying template ${template_key} with inline content to ${normalizedShop}`);
+    } else if (file_path) {
+      // Otherwise read from file
+      console.log(`🚀 Deploying template ${template_key} from ${file_path} to ${normalizedShop}`);
+      
+      const fs = require('fs');
+      try {
+        content = fs.readFileSync(file_path, 'utf8');
+      } catch (error) {
+        console.error('❌ Error reading template file:', error);
+        return res.status(400).json({
+          error: 'file_read_error',
+          message: `Could not read template file: ${file_path}`,
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    } else {
+      return res.status(400).json({ 
+        error: 'content_required', 
+        message: 'Either file_path or template_content must be provided' 
+      });
+    }
+    
+    const deployment = await shopifyService.deployTemplate(normalizedShop, template_key, content);
+    
+    if (deployment.success) {
+      res.json({
+        shop: normalizedShop,
+        template_key,
+        source: template_content ? 'inline_content' : file_path,
+        timestamp: new Date().toISOString(),
+        deployment,
+        message: `Template ${template_key} deployed successfully`
+      });
+    } else {
+      res.status(500).json({
+        shop: normalizedShop,
+        template_key,
+        source: template_content ? 'inline_content' : file_path,
+        timestamp: new Date().toISOString(),
+        deployment,
+        error: 'Deployment failed',
+        message: deployment.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error deploying template:', error);
+    res.status(500).json({
+      error: 'Failed to deploy template',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Diagnostiquer les permissions et l'accès au thème
+ * GET /debug/theme-access?shop=store.myshopify.com
+ */
+router.get('/theme-access', async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(String(req.query.shop || ''));
+    if (!shop) {
+      return res.status(400).json({ error: 'invalid_shop_param' });
+    }
+
+    console.log(`🔍 Diagnosing theme access for ${shop}`);
+
+    const token = await getShopToken(shop);
+    if (!token?.access_token) {
+      return res.status(401).json({
+        error: 'No access token found',
+        message: 'Shop is not authenticated'
+      });
+    }
+
+    const diagnostic: any = {
+      shop,
+      timestamp: new Date().toISOString(),
+      token_info: {
+        has_token: true,
+        scope: token.scope,
+        installed_at: token.installedAt
+      }
+    };
+
+    try {
+      // 1. Test basic shop access
+      console.log('🔍 Testing basic shop access...');
+      const shopResponse = await fetch(`https://${shop}/admin/api/2024-07/shop.json`, {
+        headers: {
+          'X-Shopify-Access-Token': token.access_token,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      diagnostic.shop_access = {
+        status: shopResponse.status,
+        success: shopResponse.ok,
+        error: shopResponse.ok ? null : await shopResponse.text()
+      };
+
+      // 2. Test themes access
+      console.log('🔍 Testing themes access...');
+      const themesResponse = await fetch(`https://${shop}/admin/api/2024-07/themes.json`, {
+        headers: {
+          'X-Shopify-Access-Token': token.access_token,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const themesResult: any = {
+        status: themesResponse.status,
+        success: themesResponse.ok
+      };
+
+      if (themesResponse.ok) {
+        const themesData = await themesResponse.json();
+        const mainTheme = themesData.themes.find((theme: any) => theme.role === 'main');
+        themesResult.themes_count = themesData.themes.length;
+        themesResult.main_theme = mainTheme ? {
+          id: mainTheme.id,
+          name: mainTheme.name,
+          role: mainTheme.role,
+          created_at: mainTheme.created_at
+        } : null;
+      } else {
+        themesResult.error = await themesResponse.text();
+      }
+
+      diagnostic.themes_access = themesResult;
+
+      // 3. Test theme assets access (if we have a main theme)
+      if (themesResult.main_theme) {
+        console.log(`🔍 Testing theme assets access for theme ${themesResult.main_theme.id}...`);
+        const assetsResponse = await fetch(`https://${shop}/admin/api/2024-07/themes/${themesResult.main_theme.id}/assets.json`, {
+          headers: {
+            'X-Shopify-Access-Token': token.access_token,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const assetsResult: any = {
+          status: assetsResponse.status,
+          success: assetsResponse.ok
+        };
+
+        if (assetsResponse.ok) {
+          const assetsData = await assetsResponse.json();
+          assetsResult.assets_count = assetsData.assets.length;
+          
+          // Check for existing Adlign files
+          const adlignFiles = assetsData.assets.filter((asset: any) => 
+            asset.key.includes('adlign') || 
+            asset.key === 'snippets/adlign_metaobject_injector.liquid' ||
+            asset.key === 'assets/adlign-micro-kernel.js'
+          );
+          
+          assetsResult.existing_adlign_files = adlignFiles.map((asset: any) => asset.key);
+        } else {
+          assetsResult.error = await assetsResponse.text();
+        }
+
+        diagnostic.theme_assets_access = assetsResult;
+      }
+
+      // 4. Check token scopes
+      const requiredScopes = ['write_themes', 'read_themes'];
+      const tokenScopes = token.scope ? token.scope.split(',').map(s => s.trim()) : [];
+      
+      diagnostic.permissions = {
+        token_scopes: tokenScopes,
+        required_scopes: requiredScopes,
+        has_write_themes: tokenScopes.includes('write_themes'),
+        has_read_themes: tokenScopes.includes('read_themes'),
+        missing_scopes: requiredScopes.filter(scope => !tokenScopes.includes(scope))
+      };
+
+      // 5. Summary
+      diagnostic.summary = {
+        can_read_shop: diagnostic.shop_access.success,
+        can_read_themes: diagnostic.themes_access.success,
+        can_read_theme_assets: diagnostic.theme_assets_access?.success || false,
+        has_required_permissions: diagnostic.permissions.missing_scopes.length === 0,
+        ready_for_deployment: diagnostic.shop_access.success && 
+                            diagnostic.themes_access.success && 
+                            (diagnostic.theme_assets_access?.success || false) &&
+                            diagnostic.permissions.has_write_themes
+      };
+
+    } catch (error) {
+      diagnostic.error = {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        type: 'network_or_api_error'
+      };
+    }
+
+    res.json(diagnostic);
+  } catch (error) {
+    console.error('❌ Theme access diagnostic error:', error);
+    res.status(500).json({
+      error: 'Theme access diagnostic failed',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

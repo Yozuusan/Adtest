@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Adlign Dynamic Content Replacement</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            padding: 40px;
+        }
+        .product-images {
+            text-align: center;
+        }
+        .product-image {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .product-info {
+            padding: 20px 0;
+        }
+        .product-title, h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 20px 0;
+            line-height: 1.3;
+        }
+        .price {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #e74c3c;
+            margin: 20px 0;
+        }
+        .product-description, .product__description {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #555;
+            margin: 20px 0;
+        }
+        .add-to-cart, button[type="submit"] {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 20px 0;
+            transition: background 0.3s ease;
+        }
+        .add-to-cart:hover, button[type="submit"]:hover {
+            background: #219a52;
+        }
+        .debug-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        .debug-info h4 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+        }
+        .test-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .test-controls button {
+            margin: 5px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .test-controls button.original {
+            background: #e74c3c;
+            color: white;
+        }
+        .test-controls button.variant {
+            background: #27ae60;
+            color: white;
+        }
+        /* Animation for changes */
+        [data-adlign-metafield="true"] {
+            animation: highlight 2s ease-in-out;
+        }
+        @keyframes highlight {
+            0% { background: rgba(34, 197, 94, 0.3); }
+            100% { background: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info">
+        <h4>🔧 Adlign Debug</h4>
+        <div id="debug-status">Initialisation...</div>
+        <div id="debug-variant">Variant: Non détecté</div>
+        <div id="debug-patches">Modifications: 0</div>
+        <div id="debug-url">URL: <span id="current-url"></span></div>
+    </div>
+
+    <div class="test-controls">
+        <h5 style="margin: 0 0 10px 0; color: #3498db;">Test Controls</h5>
+        <button class="original" onclick="loadOriginal()">🔄 Base URL (Original)</button>
+        <button class="variant" onclick="loadVariant()">⚡ With Variant</button>
+        <button onclick="showConsole()">📊 Console Logs</button>
+    </div>
+
+    <div class="container">
+        <!-- Simulate the /products/ URL path structure -->
+        <div class="breadcrumb" style="padding: 20px 40px 0; color: #888; font-size: 14px;">
+            <span id="url-path">/products/echantillon-savon-a-barres-de-noix-de-coco</span>
+            <span id="query-params"></span>
+        </div>
+        
+        <div class="product-grid">
+            <!-- Images produit -->
+            <div class="product-images">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM2Yzc1N2QiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5TYXZvbiBOYXR1cmVsPC90ZXh0Pgo8L3N2Zz4K" 
+                     alt="Échantillon Savon de Noix de Coco" 
+                     class="product-image">
+            </div>
+
+            <!-- Informations produit -->
+            <div class="product-info">
+                <!-- Original content that should be replaced -->
+                <h1 class="product-title">Échantillon Savon à Barres de Noix de Coco</h1>
+                
+                <div class="price">€19.99</div>
+                
+                <div class="product-description product__description">
+                    <p>Découvrez notre savon artisanal à base de noix de coco, fabriqué avec des ingrédients naturels de première qualité. Ce savon doux nettoie en profondeur tout en hydratant votre peau.</p>
+                    
+                    <p>Parfait pour tous les types de peau, ce savon respectueux de l'environnement vous offre une expérience de douche luxueuse et naturelle.</p>
+                </div>
+
+                <button class="add-to-cart" type="submit">
+                    🛒 Ajouter au panier
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de debug et contrôle -->
+    <script>
+        // Global state
+        let hasVariant = false;
+        
+        // Update debug info
+        function updateDebugInfo() {
+            const status = document.getElementById('debug-status');
+            const variant = document.getElementById('debug-variant');
+            const patches = document.getElementById('debug-patches');
+            const currentUrl = document.getElementById('current-url');
+            const queryParams = document.getElementById('query-params');
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const adlignVariant = urlParams.get('adlign_variant');
+            
+            // Update URL display
+            currentUrl.textContent = window.location.href;
+            if (adlignVariant) {
+                queryParams.textContent = ` (Variant: ${adlignVariant})`;
+                queryParams.style.color = '#27ae60';
+                queryParams.style.fontWeight = 'bold';
+            } else {
+                queryParams.textContent = ' (No variant)';
+                queryParams.style.color = '#e74c3c';
+            }
+            
+            if (adlignVariant) {
+                variant.textContent = `Variant: ${adlignVariant}`;
+                status.textContent = 'Variant détecté - En attente du micro-kernel...';
+                hasVariant = true;
+            } else {
+                variant.textContent = 'Variant: Non détecté';
+                status.textContent = 'Mode original - Pas de variant';
+                hasVariant = false;
+            }
+            
+            // Compter les éléments modifiés par Adlign
+            const modifiedElements = document.querySelectorAll('[data-adlign-metafield="true"]');
+            patches.textContent = `Modifications: ${modifiedElements.length}`;
+            
+            // Vérifier si Adlign est actif
+            if (window.Adlign && window.Adlign.data) {
+                status.textContent = '✅ Adlign actif et fonctionnel';
+            }
+        }
+        
+        // Test controls
+        function loadOriginal() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            window.location.href = baseUrl;
+        }
+        
+        function loadVariant() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            window.location.href = baseUrl + '?adlign_variant=test-workflow-1757780000';
+        }
+        
+        function showConsole() {
+            console.log('🔍 Current page state:');
+            console.log('- URL:', window.location.href);
+            console.log('- Has variant:', hasVariant);
+            console.log('- Adlign active:', !!window.Adlign);
+            console.log('- Modified elements:', document.querySelectorAll('[data-adlign-metafield="true"]').length);
+            
+            if (window.Adlign) {
+                console.log('- Adlign data:', window.Adlign.data);
+                console.log('- Applied patches:', window.Adlign.appliedPatches);
+            }
+        }
+        
+        // Simulate being on a product page
+        const originalPathname = window.location.pathname;
+        if (!originalPathname.includes('/products/')) {
+            // Temporarily modify the pathname for testing
+            Object.defineProperty(window.location, 'pathname', {
+                value: '/products/echantillon-savon-a-barres-de-noix-de-coco',
+                writable: false
+            });
+        }
+        
+        // Mettre à jour le debug toutes les secondes
+        setInterval(updateDebugInfo, 1000);
+        updateDebugInfo();
+        
+        console.log('🏪 Page produit test chargée');
+        console.log('📋 URL actuelle:', window.location.href);
+        console.log('🔍 Recherche du paramètre adlign_variant...');
+    </script>
+
+    <!-- Chargement du micro-kernel Adlign -->
+    <script src="apps/shopify-extension/extensions/adlign-app-extension/assets/adlign-micro-kernel.js"></script>
+</body>
+</html>

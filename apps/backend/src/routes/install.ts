@@ -25,7 +25,17 @@ router.post('/setup', async (req, res, next) => {
     console.log(`🚀 Starting Adlign setup for shop: ${shop}`);
 
     // 1. Créer la définition de metaobject
-    const definitionCreated = await shopifyService.ensureMetaobjectDefinition(shop);
+    const definitionData = {
+      type: 'adlign_variant',
+      name: 'Adlign Variant',
+      fieldDefinitions: [
+        { key: 'content_json', name: 'Content JSON', type: 'multi_line_text_field' },
+        { key: 'product_gid', name: 'Product GID', type: 'single_line_text_field' },
+        { key: 'created_at', name: 'Created At', type: 'date_time' },
+        { key: 'updated_at', name: 'Updated At', type: 'date_time' }
+      ]
+    };
+    const definitionCreated = await shopifyService.ensureMetaobjectDefinition(shop, definitionData);
     
     if (!definitionCreated) {
       throw createError('Failed to create metaobject definition', 500);
@@ -112,7 +122,17 @@ router.post('/demo-variants', async (req, res, next) => {
     }
 
     // S'assurer que la définition existe
-    await shopifyService.ensureMetaobjectDefinition(shop);
+    const definitionData = {
+      type: 'adlign_variant',
+      name: 'Adlign Variant',
+      fieldDefinitions: [
+        { key: 'content_json', name: 'Content JSON', type: 'multi_line_text_field' },
+        { key: 'product_gid', name: 'Product GID', type: 'single_line_text_field' },
+        { key: 'created_at', name: 'Created At', type: 'date_time' },
+        { key: 'updated_at', name: 'Updated At', type: 'date_time' }
+      ]
+    };
+    await shopifyService.ensureMetaobjectDefinition(shop, definitionData);
 
     // Créer des variants de démonstration
     const demoVariants = [
@@ -150,17 +170,14 @@ router.post('/demo-variants', async (req, res, next) => {
     
     for (const variant of demoVariants) {
       try {
-        const metaobject = await shopifyService.createOrUpdateMetaobject(
-          shop,
-          'adlign_variant',
-          [
-            { key: 'product_gid', value: product_gid },
-            { key: 'handle', value: variant.handle },
-            { key: 'content_json', value: JSON.stringify(variant.content) },
-            { key: 'created_at', value: new Date().toISOString() }
-          ],
-          variant.handle
-        );
+        const metaobject = await shopifyService.createOrUpdateMetaobject(shop, {
+          handle: variant.handle,
+          fields: {
+            product_gid: product_gid,
+            content_json: JSON.stringify(variant.content),
+            created_at: new Date().toISOString()
+          }
+        });
         
         createdVariants.push({
           handle: variant.handle,

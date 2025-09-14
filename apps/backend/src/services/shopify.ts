@@ -164,276 +164,356 @@ export class ShopifyService {
   }
 
   /**
-   * Récupère le metafield adlign_data.settings d'un produit
+   * Vérifier si le snippet Adlign est déployé sur le thème principal
    */
-  async getProductAdlignSettings(shop: string, productId: number): Promise<any> {
+  async isAdlignSnippetDeployed(shop: string): Promise<{ deployed: boolean; themeId?: string; missingFiles?: string[] }> {
     try {
       const token = await this.getToken(shop);
       if (!token) {
-        throw createError('Shop not authenticated', 401);
-    }
+        throw new Error('Shop not authenticated');
+      }
 
-      const url = `https://${shop}/admin/api/2024-07/products/${productId}/metafields.json?namespace=adlign_data&key=settings`;
-      
-      const response = await fetch(url, {
+      // 1. Récupérer le thème principal actif
+      const themesResponse = await fetch(`https://${shop}/admin/api/2024-07/themes.json`, {
         method: 'GET',
         headers: {
           'X-Shopify-Access-Token': token.access_token,
-      },
-    });
+        },
+      });
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null; // Metafield n'existe pas encore
+      if (!themesResponse.ok) {
+        throw new Error(`Failed to fetch themes: ${themesResponse.statusText}`);
       }
-        const error = await response.text();
-        throw new Error(`Shopify API error: ${error}`);
-    }
 
-      const result = await response.json() as any;
-      if (result.metafields && result.metafields.length > 0) {
-        try {
-          return JSON.parse(result.metafields[0].value);
-      } catch (e) {
-          return result.metafields[0].value;
+      const themesData = await themesResponse.json() as any;
+      const mainTheme = themesData.themes.find((theme: any) => theme.role === 'main');
+      
+      if (!mainTheme) {
+        throw new Error('No main theme found');
       }
-    }
-      
-      return null;
-  } catch (error) {
-      throw createError(`Failed to get product metafield: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
-  }
 
-  /**
-   * Met à jour le metafield adlign_data.settings d'un produit
-   */
-  async updateProductAdlignSettings(shop: string, productId: number, settings: any): Promise<ProductMetafield> {
-    try {
-      const token = await this.getToken(shop);
-      if (!token) {
-        throw createError('Shop not authenticated', 401);
-    }
+      console.log(`🎨 Found main theme: ${mainTheme.name} (ID: ${mainTheme.id})`);
 
-      // Vérifier si le metafield existe déjà
-      const existingSettings = await this.getProductAdlignSettings(shop, productId);
-      
-      let url: string;
-      let method: string;
-      let payload: any;
-
-      if (existingSettings) {
-        // Mettre à jour le metafield existant
-        const metafieldId = await this.getMetafieldId(shop, productId, 'adlign_data', 'settings');
-        url = `https://${shop}/admin/api/2024-07/metafields.json`;
-        method = 'PUT';
-        payload = {
-          metafield: {
-            value: JSON.stringify(settings)
-        }
-      };
-    } else {
-        // Créer un nouveau metafield
-        url = `https://${shop}/admin/api/2024-07/metafields.json`;
-        method = 'POST';
-        payload = {
-          metafield: {
-            namespace: 'adlign_data',
-            key: 'settings',
-            value: JSON.stringify(settings),
-            type: 'json_string',
-            owner_resource: 'product',
-            owner_id: productId
-        }
-      };
-    }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-      },
-        body: JSON.stringify(payload),
-    });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Shopify API error: ${error}`);
-    }
-
-      const result = await response.json() as any;
-      return result.metafield;
-  } catch (error) {
-      throw createError(`Failed to update product metafield: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
-  }
-
-  /**
-   * Ajoute une variante Adlign au produit
-   */
-  async addAdlignVariant(
-    shop: string, 
-    productId: number, 
-    variantHandle: string, 
-    variantData: AdlignVariant
-  ): Promise<any> {
-    try {
-      console.log(`🎯 [SHOPIFY] Ajout variante ${variantHandle} au produit ${productId}`);
-      
-      // Récupérer les settings actuels
-      const currentSettings = await this.getProductAdlignSettings(shop, productId) || {};
-      
-      // Ajouter la nouvelle variante
-      currentSettings[variantHandle] = variantData;
-      
-      // Mettre à jour le metafield
-      const result = await this.updateProductAdlignSettings(shop, productId, currentSettings);
-      
-      console.log(`✅ [SHOPIFY] Variante ${variantHandle} ajoutée avec succès`);
-      
-      return {
-        success: true,
-        variant_handle: variantHandle,
-        metafield: result,
-        message: `Variante ${variantHandle} ajoutée au produit ${productId}`
-    };
-  } catch (error) {
-      console.error(`❌ [SHOPIFY] Erreur ajout variante ${variantHandle}:`, error);
-      throw createError(`Failed to add Adlign variant: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
-  }
-
-  /**
-   * Récupère l'ID d'un metafield spécifique
-   */
-  private async getMetafieldId(shop: string, productId: number, namespace: string, key: string): Promise<number> {
-    try {
-      const token = await this.getToken(shop);
-      if (!token) {
-        throw createError('Shop not authenticated', 401);
-    }
-      
-      const url = `https://${shop}/admin/api/2024-07/products/${productId}/metafields.json?namespace=${namespace}&key=${key}`;
-      
-      const response = await fetch(url, {
+      // 2. Vérifier si les fichiers Adlign existent
+      const assetsResponse = await fetch(`https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`, {
         method: 'GET',
         headers: {
           'X-Shopify-Access-Token': token.access_token,
-      },
-    });
+        },
+      });
 
-      if (!response.ok) {
-        throw new Error(`Shopify API error: ${response.statusText}`);
-    }
+      if (!assetsResponse.ok) {
+        throw new Error(`Failed to fetch theme assets: ${assetsResponse.statusText}`);
+      }
 
-      const result = await response.json() as any;
-      if (result.metafields && result.metafields.length > 0) {
-        return result.metafields[0].id;
-    }
+      const assetsData = await assetsResponse.json() as any;
+      const assets = assetsData.assets || [];
       
-      throw new Error('Metafield not found');
-  } catch (error) {
-      throw createError(`Failed to get metafield ID: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-  }
-  }
+      // Fichiers Adlign requis
+      const requiredFiles = [
+        'snippets/adlign_metaobject_injector.liquid',
+        'assets/adlign-micro-kernel.js'
+      ];
 
-  /**
-   * Crée ou met à jour un metaobject
-   */
-  async createOrUpdateMetaobject(
-    shop: string,
-    type: string,
-    fields: Array<{ key: string; value: string | number | boolean }>,
-    handle?: string
-  ): Promise<ShopifyMetaobject> {
-    try {
-      const token = await this.getToken(shop);
-      if (!token) {
-        throw createError('Shop not authenticated', 401);
-    }
+      const missingFiles: string[] = [];
+      const existingFiles: string[] = [];
 
-      const url = `https://${shop}/admin/api/2024-07/metafields.json`;
-      const payload = {
-        metafield: {
-          namespace: 'adlign_data',
-          key: handle || 'variant',
-          value: JSON.stringify(fields),
-          type: 'json_string'
-      }
-    };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-      },
-        body: JSON.stringify(payload),
-    });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Shopify API error: ${error}`);
-    }
-
-      const result = await response.json() as any;
-      return {
-        id: result.metafield.id,
-        handle: result.metafield.handle || '',
-        value: result.metafield.value,
-        type: result.metafield.type,
-        fields
-      };
-  } catch (error) {
-      throw createError(`Failed to create/update metaobject: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
-    }
-  }
-
-  /**
-   * Upload un fichier vers Shopify
-   */
-  async uploadFileToShopify(
-    shop: string,
-    fileUrl: string,
-    alt?: string
-  ): Promise<ShopifyFile> {
-    try {
-      const token = await this.getToken(shop);
-      if (!token) {
-        throw createError('Shop not authenticated', 401);
-      }
-
-      const url = `https://${shop}/admin/api/2024-07/files.json`;
-      const payload = {
-        file: {
-          url: fileUrl,
-          alt: alt || 'Adlign generated image'
+      for (const file of requiredFiles) {
+        const exists = assets.some((asset: any) => asset.key === file);
+        if (exists) {
+          existingFiles.push(file);
+          console.log(`✅ Found Adlign file: ${file}`);
+        } else {
+          missingFiles.push(file);
+          console.log(`❌ Missing Adlign file: ${file}`);
         }
+      }
+
+      const deployed = missingFiles.length === 0;
+      
+      return {
+        deployed,
+        themeId: mainTheme.id,
+        missingFiles: deployed ? undefined : missingFiles
       };
 
-      const response = await fetch(url, {
-        method: 'POST',
+    } catch (error) {
+      console.error('Error checking Adlign snippet deployment:', error);
+      return { deployed: false };
+    }
+  }
+
+  /**
+   * Déployer automatiquement le snippet Adlign sur le thème principal
+   */
+  async deployAdlignSnippet(shop: string): Promise<{ success: boolean; deployedFiles?: string[]; error?: string }> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) {
+        throw new Error('Shop not authenticated');
+      }
+
+      // 1. Vérifier le status actuel
+      const status = await this.isAdlignSnippetDeployed(shop);
+      if (status.deployed) {
+        console.log('✅ Adlign snippet already deployed');
+        return { success: true, deployedFiles: [] };
+      }
+
+      if (!status.themeId) {
+        throw new Error('Could not determine main theme ID');
+      }
+
+      console.log(`🚀 Deploying Adlign snippet to theme ${status.themeId}...`);
+
+      // 2. Define simple content for testing
+      const snippetContent = `{% comment %}
+  Adlign Metaobject Injector - Test Version
+{% endcomment %}
+
+{% assign adlign_variant = request.url | split: 'av=' | last | split: '&' | first %}
+
+{% if adlign_variant and adlign_variant != '' %}
+  <div id="adlign-test-content" style="border: 2px solid #0ea5e9; padding: 20px; margin: 20px 0; background: #f0f9ff;">
+    <h3 style="color: #0369a1; margin-top: 0;">Adlign Test Snippet Active</h3>
+    <p><strong>Variant:</strong> {{ adlign_variant }}</p>
+    <p><strong>Shop:</strong> {{ shop.domain }}</p>
+    <p><strong>Product:</strong> {{ product.handle | default: 'none' }}</p>
+    <p><em>This is a test deployment. The micro-kernel will be loaded next.</em></p>
+  </div>
+  
+  <script src="{{ 'adlign-micro-kernel.js' | asset_url }}" defer></script>
+{% endif %}`;
+
+      const jsContent = `// Adlign Micro-kernel Test Version
+console.log('🚀 Adlign micro-kernel test version loaded');
+
+window.AdlignMicroKernel = {
+  version: '1.0.0-test',
+  
+  init: function() {
+    console.log('🔧 Initializing Adlign micro-kernel test...');
+    
+    const testDiv = document.getElementById('adlign-test-content');
+    if (testDiv) {
+      testDiv.innerHTML += '<p style="color: #059669; font-weight: bold;">✅ Micro-kernel loaded successfully!</p>';
+    }
+  }
+};
+
+// Auto-initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', window.AdlignMicroKernel.init);
+} else {
+  window.AdlignMicroKernel.init();
+}`;
+
+      const deployedFiles: string[] = [];
+
+      // 3. Deploy snippet file
+      if (status.missingFiles?.includes('snippets/adlign_metaobject_injector.liquid')) {
+        console.log('🔧 Deploying Liquid snippet...');
+        
+        const snippetResponse = await fetch(`https://${shop}/admin/api/2024-07/themes/${status.themeId}/assets.json`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': token.access_token,
+          },
+          body: JSON.stringify({
+            asset: {
+              key: 'snippets/adlign_metaobject_injector.liquid',
+              value: snippetContent
+            }
+          }),
+        });
+
+        if (!snippetResponse.ok) {
+          const error = await snippetResponse.text();
+          console.error('❌ Snippet deployment failed:', {
+            status: snippetResponse.status,
+            statusText: snippetResponse.statusText,
+            error,
+            themeId: status.themeId,
+            shop,
+            url: `https://${shop}/admin/api/2024-07/themes/${status.themeId}/assets.json`
+          });
+          
+          let errorMessage = `Failed to deploy snippet (${snippetResponse.status})`;
+          
+          if (snippetResponse.status === 404) {
+            errorMessage += ': Theme not found. Please verify the theme ID is correct.';
+          } else if (snippetResponse.status === 401) {
+            errorMessage += ': Authentication failed. Please verify the access token is valid.';
+          } else if (snippetResponse.status === 403) {
+            errorMessage += ': Permission denied. Please verify the token has write_themes scope.';
+          } else if (error.includes('Not Found')) {
+            errorMessage += ': API endpoint not found. Please verify the theme ID and API version.';
+          }
+          
+          throw new Error(`${errorMessage} Error: ${error}`);
+        }
+
+        deployedFiles.push('snippets/adlign_metaobject_injector.liquid');
+        console.log('✅ Deployed adlign_metaobject_injector.liquid');
+      }
+
+      // 4. Deploy JavaScript file
+      if (status.missingFiles?.includes('assets/adlign-micro-kernel.js')) {
+        console.log('🔧 Deploying JavaScript micro-kernel...');
+        
+        const jsResponse = await fetch(`https://${shop}/admin/api/2024-07/themes/${status.themeId}/assets.json`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': token.access_token,
+          },
+          body: JSON.stringify({
+            asset: {
+              key: 'assets/adlign-micro-kernel.js',
+              value: jsContent
+            }
+          }),
+        });
+
+        if (!jsResponse.ok) {
+          const error = await jsResponse.text();
+          console.error('❌ JavaScript deployment failed:', {
+            status: jsResponse.status,
+            statusText: jsResponse.statusText,
+            error,
+            themeId: status.themeId,
+            shop
+          });
+          
+          let errorMessage = `Failed to deploy micro-kernel (${jsResponse.status})`;
+          
+          if (jsResponse.status === 404) {
+            errorMessage += ': Theme not found. Please verify the theme ID is correct.';
+          } else if (jsResponse.status === 401) {
+            errorMessage += ': Authentication failed. Please verify the access token is valid.';
+          } else if (jsResponse.status === 403) {
+            errorMessage += ': Permission denied. Please verify the token has write_themes scope.';
+          }
+          
+          throw new Error(`${errorMessage} Error: ${error}`);
+        }
+
+        deployedFiles.push('assets/adlign-micro-kernel.js');
+        console.log('✅ Deployed adlign-micro-kernel.js');
+      }
+
+      console.log(`🎉 Adlign snippet deployment completed! Files deployed: ${deployedFiles.join(', ')}`);
+      
+      return { 
+        success: true, 
+        deployedFiles 
+      };
+
+    } catch (error) {
+      console.error('Error deploying Adlign snippet:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
+   * Auto-déployer le snippet si nécessaire lors de la création d'une variante
+   */
+  async autoDeploySnippetIfNeeded(shop: string): Promise<boolean> {
+    try {
+      const status = await this.isAdlignSnippetDeployed(shop);
+      
+      if (!status.deployed) {
+        console.log('🔧 Auto-deploying Adlign snippet...');
+        const deployment = await this.deployAdlignSnippet(shop);
+        
+        if (!deployment.success) {
+          console.error('❌ Failed to auto-deploy snippet:', deployment.error);
+          return false;
+        }
+        
+        console.log('✅ Auto-deployment successful');
+        return true;
+      }
+      
+      console.log('✅ Snippet already deployed');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error in auto-deployment:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Deploy template file to Shopify theme
+   */
+  async deployTemplate(shop: string, templateKey: string, templateContent: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) {
+        throw new Error('Shop not authenticated');
+      }
+
+      // Get the main theme ID
+      const status = await this.isAdlignSnippetDeployed(shop);
+      if (!status.themeId) {
+        throw new Error('Could not determine main theme ID');
+      }
+
+      console.log(`🚀 Deploying template ${templateKey} to theme ${status.themeId}...`);
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/themes/${status.themeId}/assets.json`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          asset: {
+            key: templateKey,
+            value: templateContent
+          }
+        }),
       });
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`Shopify API error: ${error}`);
+        console.error('❌ Template deployment failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error,
+          themeId: status.themeId,
+          shop,
+          templateKey
+        });
+        
+        let errorMessage = `Failed to deploy template (${response.status})`;
+        
+        if (response.status === 404) {
+          errorMessage += ': Theme not found. Please verify the theme ID is correct.';
+        } else if (response.status === 401) {
+          errorMessage += ': Authentication failed. Please verify the access token is valid.';
+        } else if (response.status === 403) {
+          errorMessage += ': Insufficient permissions. Please verify write_themes scope.';
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json() as any;
-      return {
-        id: result.file.id,
-        url: result.file.url,
-        alt: result.file.alt
-      };
+      console.log(`✅ Successfully deployed template: ${templateKey}`);
+      
+      return { success: true };
+
     } catch (error) {
-      throw createError(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+      console.error('Error deploying template:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
     }
   }
 
@@ -469,495 +549,23 @@ export class ShopifyService {
   }
 
   /**
-   * Récupérer un variant par handle
+   * Set a metafield for a product (used by variants route)
    */
-  async getVariantByHandle(shop: string, handle: string): Promise<any> {
-    const token = await getShopToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const query = `
-      query getMetaobjectByHandle($type: String!, $handle: String!) {
-        metaobjects(type: $type, first: 1, query: $handle) {
-          edges {
-            node {
-              id
-              handle
-              fields {
-                key
-                value
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ query, variables: { type: "adlign_mapping", handle } }),
-      });
-
-      const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return null;
-      }
-
-      const metaobjects = result.data?.metaobjects?.edges || [];
-      if (metaobjects.length === 0) return null;
-
-      const metaobject = metaobjects[0].node;
-      
-      // Convertir les fields en objet
-      const fieldsObj: any = {};
-      metaobject.fields.forEach((field: any) => {
-        fieldsObj[field.key] = field.value;
-      });
-
-      return {
-        id: metaobject.id,
-        handle: metaobject.handle,
-        ...fieldsObj
-      };
-    } catch (error) {
-      console.error('Error fetching variant:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Récupérer tous les variants d'un shop
-   */
-  async getAllVariants(shop: string): Promise<any[]> {
-    const token = await getShopToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const query = `
-      query getMetaobjects {
-        metaobjects(type: "adlign_mapping", first: 250) {
-          edges {
-            node {
-              id
-              handle
-              fields {
-                key
-                value
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return [];
-      }
-
-      const metaobjects = result.data?.metaobjects?.edges || [];
-      
-      return metaobjects.map((edge: any) => {
-        const metaobject = edge.node;
-        const fieldsObj: any = {};
-        metaobject.fields.forEach((field: any) => {
-          fieldsObj[field.key] = field.value;
-        });
-
-        return {
-          id: metaobject.id,
-          handle: metaobject.handle,
-          ...fieldsObj
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching variants:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupère les produits avec l'API GraphQL moderne (remplace l'API REST dépréciée)
-   */
-  async getProducts(shop: string, query: string = '', limit: number = 20): Promise<any[]> {
-    const token = await this.getToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const graphQLQuery = `
-      query getProducts($first: Int!, $query: String) {
-        products(first: $first, query: $query) {
-          edges {
-            node {
-              id
-              handle
-              title
-              status
-              createdAt
-              updatedAt
-              productType
-              vendor
-              tags
-              featuredImage {
-                id
-                url
-                altText
-              }
-              priceRange {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-                maxVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-              variants(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    price
-                    compareAtPrice
-                    sku
-                    inventoryQuantity
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ 
-          query: graphQLQuery, 
-          variables: { 
-            first: limit,
-            query: query || null
-          }
-        }),
-      });
-
-      const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return [];
-      }
-
-      const products = result.data?.products?.edges || [];
-      
-      return products.map((edge: any) => {
-        const node = edge.node;
-        return {
-          id: node.id.replace('gid://shopify/Product/', ''), // Extract numeric ID
-          gid: node.id,
-          handle: node.handle,
-          title: node.title,
-          status: node.status,
-          created_at: node.createdAt,
-          updated_at: node.updatedAt,
-          product_type: node.productType,
-          vendor: node.vendor,
-          tags: node.tags,
-          featured_image: node.featuredImage ? {
-            id: node.featuredImage.id,
-            src: node.featuredImage.url,
-            alt: node.featuredImage.altText
-          } : null,
-          image_url: node.featuredImage?.url || null, // Add compatibility for frontend
-          product_url: `https://${shop}/products/${node.handle}`, // Add Shopify product URL
-          variants: node.variants.edges.map((variantEdge: any) => {
-            const variant = variantEdge.node;
-            return {
-              id: variant.id.replace('gid://shopify/ProductVariant/', ''),
-              gid: variant.id,
-              title: variant.title,
-              price: variant.price,
-              compare_at_price: variant.compareAtPrice,
-              sku: variant.sku,
-              inventory_quantity: variant.inventoryQuantity
-            };
-          })
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupérer un produit spécifique par ID (GraphQL)
-   */
-  async getProduct(shop: string, productId: string): Promise<any | null> {
-    const token = await this.getToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const graphQLQuery = `
-      query getProduct($id: ID!) {
-        product(id: $id) {
-          id
-          handle
-          title
-          description
-          descriptionHtml
-          status
-          createdAt
-          updatedAt
-          productType
-          vendor
-          tags
-          images(first: 50) {
-            edges {
-              node {
-                id
-                url
-                altText
-                width
-                height
-              }
-            }
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-            maxVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          variants(first: 50) {
-            edges {
-              node {
-                id
-                title
-                price
-                compareAtPrice
-                sku
-                inventoryQuantity
-                selectedOptions {
-                  name
-                  value
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({
-          query: graphQLQuery,
-          variables: { id: `gid://shopify/Product/${productId}` },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Shopify GraphQL API error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return null;
-      }
-
-      const product = result.data?.product;
-      if (!product) return null;
-
-      return {
-        id: product.id.replace('gid://shopify/Product/', ''),
-        gid: product.id,
-        handle: product.handle,
-        title: product.title,
-        description: product.description,
-        description_html: product.descriptionHtml,
-        status: product.status,
-        created_at: product.createdAt,
-        updated_at: product.updatedAt,
-        product_type: product.productType,
-        vendor: product.vendor,
-        tags: product.tags,
-        images: product.images.edges.map((edge: any) => ({
-          id: edge.node.id,
-          src: edge.node.url,
-          alt: edge.node.altText,
-          width: edge.node.width,
-          height: edge.node.height
-        })),
-        variants: product.variants.edges.map((edge: any) => {
-          const variant = edge.node;
-          return {
-            id: variant.id.replace('gid://shopify/ProductVariant/', ''),
-            gid: variant.id,
-            title: variant.title,
-            price: variant.price,
-            compare_at_price: variant.compareAtPrice,
-            sku: variant.sku,
-            inventory_quantity: variant.inventoryQuantity,
-            selected_options: variant.selectedOptions
-          };
-        }),
-        product_url: `https://${shop}/products/${product.handle}`
-      };
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Supprimer un variant par handle
-   */
-  async deleteVariantByHandle(shop: string, handle: string): Promise<boolean> {
-    const variant = await this.getVariantByHandle(shop, handle);
-    if (!variant) return false;
-
-    const token = await getShopToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const mutation = `
-      mutation metaobjectDelete($id: ID!) {
-        metaobjectDelete(id: $id) {
-          deletedId
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ 
-          query: mutation, 
-          variables: { id: variant.id }
-        }),
-      });
-
-      const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return false;
-      }
-
-      const deleteResult = result.data?.metaobjectDelete;
-      if (deleteResult?.userErrors?.length > 0) {
-        console.error('Delete errors:', deleteResult.userErrors);
-        return false;
-      }
-
-      return !!deleteResult?.deletedId;
-    } catch (error) {
-      console.error('Error deleting variant:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Ensure metaobject definition exists
-   */
-  async ensureMetaobjectDefinition(shop: string): Promise<boolean> {
+  async setProductMetafield(shop: string, productId: string, namespace: string, key: string, value: string): Promise<boolean> {
     try {
       const token = await this.getToken(shop);
       if (!token) {
-        return false;
+        throw new Error('Shop not authenticated');
       }
 
-      // Vérifier si la définition existe déjà
-      const checkQuery = `
-        query {
-          metaobjectDefinitions(first: 10) {
-            edges {
-              node {
-                id
-                type
-                name
-              }
-            }
-          }
-        }
-      `;
-
-      const checkResponse = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ query: checkQuery }),
-      });
-
-      const checkResult = await checkResponse.json() as any;
-      const definitions = checkResult.data?.metaobjectDefinitions?.edges || [];
-      const existingDef = definitions.find((def: any) => def.node.type === 'adlign_variant');
-
-      if (existingDef) {
-        console.log('✅ Metaobject definition adlign_variant already exists');
-        return true;
-      }
-
-      // Créer la définition si elle n'existe pas
-      const createMutation = `
-        mutation metaobjectDefinitionCreate($definition: MetaobjectDefinitionCreateInput!) {
-          metaobjectDefinitionCreate(definition: $definition) {
-            metaobjectDefinition {
+      const mutation = `
+        mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+          metafieldsSet(metafields: $metafields) {
+            metafields {
               id
-              type
-              name
+              namespace
+              key
+              value
             }
             userErrors {
               field
@@ -968,86 +576,15 @@ export class ShopifyService {
       `;
 
       const variables = {
-        definition: {
-          type: 'adlign_variant',
-          name: 'Adlign Variant',
-          description: 'Dynamic content variants for Adlign campaigns',
-          fieldDefinitions: [
-            { key: 'product_gid', name: 'Product GID', type: 'single_line_text_field' },
-            { key: 'handle', name: 'Handle', type: 'single_line_text_field' },
-            { key: 'content_json', name: 'Content JSON', type: 'multi_line_text_field' },
-            { key: 'created_at', name: 'Created At', type: 'date_time' }
-          ]
-        }
+        metafields: [{
+          ownerId: productId,
+          namespace,
+          key,
+          value,
+          type: 'json'
+        }]
       };
 
-      const createResponse = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ query: createMutation, variables }),
-      });
-
-      const createResult = await createResponse.json() as any;
-      
-      if (createResult.errors) {
-        console.error('Failed to create metaobject definition:', createResult.errors);
-        return false;
-      }
-
-      const definitionResult = createResult.data?.metaobjectDefinitionCreate;
-      if (definitionResult?.userErrors?.length > 0) {
-        console.error('Metaobject definition creation errors:', definitionResult.userErrors);
-        return false;
-      }
-
-      console.log('✅ Metaobject definition adlign_variant created successfully');
-      return true;
-    } catch (error) {
-      console.error('Error ensuring metaobject definition:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Sauvegarder un variant dans les metafields du produit
-   */
-  async setProductMetafield(shop: string, productId: string, namespace: string, key: string, value: string): Promise<boolean> {
-    const token = await this.getToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
-
-    const mutation = `
-      mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
-        metafieldsSet(metafields: $metafields) {
-          metafields {
-            id
-            namespace
-            key
-            value
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const variables = {
-      metafields: [{
-        ownerId: productId,
-        namespace,
-        key,
-        value,
-        type: 'json'
-      }]
-    };
-
-    try {
       const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
@@ -1078,92 +615,504 @@ export class ShopifyService {
   }
 
   /**
-   * Récupérer un metafield spécifique du produit
+   * Add an Adlign variant (metaobject)
    */
-  async getProductMetafield(shop: string, productId: string, namespace: string, key: string): Promise<any> {
-    const token = await this.getToken(shop);
-    if (!token) {
-      throw new Error('Shop not authenticated');
-    }
+  async addAdlignVariant(shop: string, productId: number, variantHandle: string, variantData: any): Promise<any> {
+    const metaobjectData = {
+      handle: variantHandle,
+      fields: {
+        product_id: productId.toString(),
+        ...variantData
+      }
+    };
+    return this.createOrUpdateMetaobject(shop, metaobjectData);
+  }
 
-    const query = `
-      query getProductMetafield($id: ID!, $namespace: String!, $key: String!) {
-        product(id: $id) {
-          metafield(namespace: $namespace, key: $key) {
+  /**
+   * Get product Adlign settings
+   */
+  async getProductAdlignSettings(shop: string, productId: string | number): Promise<any> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const query = `
+        query getProduct($id: ID!) {
+          product(id: $id) {
             id
-            namespace
-            key
-            value
-            type
-            createdAt
-            updatedAt
+            title
+            handle
+            metafields(first: 20, namespace: "adlign") {
+              nodes {
+                key
+                value
+                type
+              }
+            }
           }
         }
-      }
-    `;
+      `;
 
-    const variables = {
-      id: productId,
-      namespace,
-      key
-    };
-
-    try {
       const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Shopify-Access-Token': token.access_token,
         },
-        body: JSON.stringify({ query, variables }),
+        body: JSON.stringify({ 
+          query, 
+          variables: { id: typeof productId === 'number' ? `gid://shopify/Product/${productId}` : productId } 
+        }),
       });
 
       const result = await response.json() as any;
-      
-      if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
-        return null;
-      }
-
-      const metafield = result.data?.product?.metafield;
-      if (metafield) {
-        console.log(`✅ Metafield found: ${namespace}.${key} for product ${productId}`);
-        return JSON.parse(metafield.value);
-      }
-
-      console.log(`⚠️ No metafield found: ${namespace}.${key} for product ${productId}`);
-      return null;
+      return result.data?.product || null;
     } catch (error) {
-      console.error('Error getting metafield:', error);
+      console.error('Error getting product settings:', error);
       return null;
     }
   }
 
   /**
-   * Récupérer un variant par handle depuis les metafields (nouvelle approche MVP)
+   * Update product Adlign settings
+   */
+  async updateProductAdlignSettings(shop: string, productId: string | number, settings: any): Promise<boolean> {
+    try {
+      return await this.setProductMetafield(shop, typeof productId === 'number' ? productId.toString() : productId, 'adlign', 'settings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error updating product settings:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get products list
+   */
+  async getProducts(shop: string, limit = 50): Promise<any[]> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const query = `
+        query getProducts($first: Int!) {
+          products(first: $first) {
+            nodes {
+              id
+              title
+              handle
+              status
+              featuredImage {
+                url
+                altText
+              }
+              createdAt
+              updatedAt
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query, 
+          variables: { first: limit } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      return result.data?.products?.nodes || [];
+    } catch (error) {
+      console.error('Error getting products:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get single product
+   */
+  async getProduct(shop: string, productId: string): Promise<any> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const query = `
+        query getProduct($id: ID!) {
+          product(id: $id) {
+            id
+            title
+            handle
+            description
+            status
+            productType
+            vendor
+            tags
+            featuredImage {
+              url
+              altText
+            }
+            images(first: 10) {
+              nodes {
+                id
+                url
+                altText
+              }
+            }
+            variants(first: 10) {
+              nodes {
+                id
+                title
+                price
+                availableForSale
+              }
+            }
+            metafields(first: 20) {
+              nodes {
+                namespace
+                key
+                value
+                type
+              }
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query, 
+          variables: { id: productId } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      return result.data?.product || null;
+    } catch (error) {
+      console.error('Error getting product:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get variant by handle from metafields
    */
   async getVariantByHandleFromMetafields(shop: string, handle: string): Promise<any> {
     try {
-      // Pour l'instant, on doit deviner le produit ou chercher dans tous les produits
-      // En attendant, utilisons le produit que nous connaissons de l'exemple
-      const productId = "gid://shopify/Product/15096939610438"; // ID du savon
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const query = `
+        query getMetaobjects($type: String!, $first: Int!) {
+          metaobjects(type: $type, first: $first) {
+            nodes {
+              id
+              handle
+              fields {
+                key
+                value
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query, 
+          variables: { 
+            type: 'adlign_variant',
+            first: 250 
+          } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      const metaobjects = result.data?.metaobjects?.nodes || [];
       
-      const variantData = await this.getProductMetafield(shop, productId, 'adlign', handle);
-      
-      if (variantData) {
-        return {
-          handle,
-          content_json: variantData,
-          product_gid: productId,
-          created_at: new Date().toISOString(), // On n'a pas la vraie date de création
-          storage_type: 'metafields'
-        };
-      }
-      
-      return null;
+      return metaobjects.find((obj: any) => obj.handle === handle) || null;
     } catch (error) {
-      console.error('Error getting variant from metafields:', error);
+      console.error('Error getting variant by handle:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get all variants
+   */
+  async getAllVariants(shop: string): Promise<any[]> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const query = `
+        query getMetaobjects($type: String!, $first: Int!) {
+          metaobjects(type: $type, first: $first) {
+            nodes {
+              id
+              handle
+              fields {
+                key
+                value
+              }
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query, 
+          variables: { 
+            type: 'adlign_variant',
+            first: 250 
+          } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      return result.data?.metaobjects?.nodes || [];
+    } catch (error) {
+      console.error('Error getting all variants:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create or update metaobject
+   */
+  async createOrUpdateMetaobject(shop: string, metaobjectData: any): Promise<any> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      // First check if metaobject with this handle already exists
+      const existingVariant = await this.getVariantByHandleFromMetafields(shop, metaobjectData.handle);
+      
+      if (existingVariant) {
+        // Update existing metaobject
+        const mutation = `
+          mutation metaobjectUpdate($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+            metaobjectUpdate(id: $id, metaobject: $metaobject) {
+              metaobject {
+                id
+                handle
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `;
+
+        const variables = {
+          id: existingVariant.id,
+          metaobject: {
+            fields: Object.entries(metaobjectData.fields || {}).map(([key, value]) => ({
+              key,
+              value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+            }))
+          }
+        };
+
+        const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': token.access_token,
+          },
+          body: JSON.stringify({ query: mutation, variables }),
+        });
+
+        const result = await response.json() as any;
+        return result.data?.metaobjectUpdate?.metaobject;
+      } else {
+        // Create new metaobject
+        const mutation = `
+          mutation metaobjectCreate($metaobject: MetaobjectCreateInput!) {
+            metaobjectCreate(metaobject: $metaobject) {
+              metaobject {
+                id
+                handle
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `;
+
+        const variables = {
+          metaobject: {
+            type: 'adlign_variant',
+            handle: metaobjectData.handle,
+            fields: Object.entries(metaobjectData.fields || {}).map(([key, value]) => ({
+              key,
+              value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+            }))
+          }
+        };
+
+        const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': token.access_token,
+          },
+          body: JSON.stringify({ query: mutation, variables }),
+        });
+
+        const result = await response.json() as any;
+        return result.data?.metaobjectCreate?.metaobject;
+      }
+    } catch (error) {
+      console.error('Error creating/updating metaobject:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete variant by handle
+   */
+  async deleteVariantByHandle(shop: string, handle: string): Promise<boolean> {
+    try {
+      const variant = await this.getVariantByHandleFromMetafields(shop, handle);
+      if (!variant) return false;
+
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      const mutation = `
+        mutation metaobjectDelete($id: ID!) {
+          metaobjectDelete(id: $id) {
+            deletedId
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query: mutation, 
+          variables: { id: variant.id } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      return !!result.data?.metaobjectDelete?.deletedId;
+    } catch (error) {
+      console.error('Error deleting variant:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure metaobject definition exists
+   */
+  async ensureMetaobjectDefinition(shop: string, definitionData: any): Promise<any> {
+    try {
+      const token = await this.getToken(shop);
+      if (!token) throw new Error('Shop not authenticated');
+
+      // First check if definition already exists
+      const query = `
+        query getMetaobjectDefinition($type: String!) {
+          metaobjectDefinition(type: $type) {
+            id
+            type
+            name
+          }
+        }
+      `;
+
+      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query, 
+          variables: { type: definitionData.type } 
+        }),
+      });
+
+      const result = await response.json() as any;
+      
+      if (result.data?.metaobjectDefinition) {
+        return result.data.metaobjectDefinition;
+      }
+
+      // Create new definition if it doesn't exist
+      const mutation = `
+        mutation metaobjectDefinitionCreate($definition: MetaobjectDefinitionCreateInput!) {
+          metaobjectDefinitionCreate(definition: $definition) {
+            metaobjectDefinition {
+              id
+              type
+              name
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const createResponse = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token.access_token,
+        },
+        body: JSON.stringify({ 
+          query: mutation, 
+          variables: { definition: definitionData } 
+        }),
+      });
+
+      const createResult = await createResponse.json() as any;
+      return createResult.data?.metaobjectDefinitionCreate?.metaobjectDefinition;
+    } catch (error) {
+      console.error('Error ensuring metaobject definition:', error);
+      throw error;
     }
   }
 

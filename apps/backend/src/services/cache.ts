@@ -8,9 +8,11 @@ const redis = new Redis({
 export interface ThemeAdapter {
   selectors: Record<string, string>;
   order: string[];
-  confidence: number;
+  confidence: Record<string, number>;
+  strategies: Record<string, 'text' | 'html' | 'image_src' | 'list_text'>;
   theme_fingerprint: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface VariantData {
