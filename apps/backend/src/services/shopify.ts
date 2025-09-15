@@ -1138,7 +1138,7 @@ if (document.readyState === 'loading') {
         throw new Error(`Shopify API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       
       if (data.errors) {
         throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
