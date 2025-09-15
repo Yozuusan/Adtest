@@ -685,56 +685,6 @@ if (document.readyState === 'loading') {
     }
   }
 
-  /**
-   * Get products list
-   */
-  async getProducts(shop: string, limit = 50): Promise<any[]> {
-    try {
-      const token = await this.getToken(shop);
-      if (!token) throw new Error('Shop not authenticated');
-
-      const query = `
-        query getProducts($first: Int!) {
-          products(first: $first) {
-            nodes {
-              id
-              title
-              handle
-              status
-              featuredImage {
-                url
-                altText
-              }
-              createdAt
-              updatedAt
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-        }
-      `;
-
-      const response = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token.access_token,
-        },
-        body: JSON.stringify({ 
-          query, 
-          variables: { first: limit } 
-        }),
-      });
-
-      const result = await response.json() as any;
-      return result.data?.products?.nodes || [];
-    } catch (error) {
-      console.error('Error getting products:', error);
-      return [];
-    }
-  }
 
   /**
    * Get single product
