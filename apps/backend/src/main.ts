@@ -37,6 +37,7 @@ import userShopsRoutes from './routes/user-shops';
 import installRoutes from './routes/install';
 import debugFrontendRoutes from './routes/debug-frontend';
 import templatesRoutes from './routes/templates';
+import autoDeployRoutes from './routes/auto-deploy';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -96,6 +97,7 @@ app.use('/user-shops', userShopsRoutes);
 app.use('/install', installRoutes);
 app.use('/debug-frontend', debugFrontendRoutes);
 app.use('/templates', templatesRoutes);
+app.use('/auto-deploy', autoDeployRoutes);
 
 // Route API directe pour le micro-kernel (évite les problèmes de routage)
 app.get('/api/variant-data', async (req, res) => {

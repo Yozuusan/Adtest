@@ -7,6 +7,7 @@ import { Variants } from '@/pages/Variants';
 import { NewVariant } from '@/pages/NewVariant';
 import { VariantPreview } from '@/pages/VariantPreview';
 import { ThemeMapping } from '@/pages/ThemeMapping';
+import { Templates } from '@/pages/Templates';
 import { Analytics } from '@/pages/Analytics';
 import { Brand } from '@/pages/Brand';
 import { ConnectStore } from '@/pages/ConnectStore';
@@ -37,6 +38,7 @@ function App() {
           <Route path="variants/new" element={<NewVariant />} />
           <Route path="variants/preview/:handle" element={<VariantPreview />} />
           <Route path="variants/mapping" element={<ThemeMapping />} />
+          <Route path="templates" element={<Templates />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="brand" element={<Brand />} />
           <Route path="connect-store" element={<ConnectStore />} />

@@ -4,7 +4,8 @@ import {
   LayoutDashboard,
   BarChart3,
   Palette,
-  Target
+  Target,
+  Wand2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +15,11 @@ const navigation = [
     name: 'Overview',
     href: '/',
     icon: LayoutDashboard,
+  },
+  {
+    name: 'Templates',
+    href: '/templates',
+    icon: Wand2,
   },
   {
     name: 'Variants',

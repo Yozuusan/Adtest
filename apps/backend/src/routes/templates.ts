@@ -58,7 +58,10 @@ router.post('/generate-from-mapping', async (req, res, next) => {
         product_handle: product_handle,
         product_gid: product_gid,
         theme_fingerprint: themeAdapter.theme_fingerprint,
-        confidence_avg: Object.values(themeAdapter.confidence).reduce((a: number, b: number) => a + b) / Object.values(themeAdapter.confidence).length,
+        confidence_avg: (() => {
+          const confidenceValues = Object.values(themeAdapter.confidence) as number[];
+          return confidenceValues.length > 0 ? confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length : 0;
+        })(),
         deployed: true
       }
     });
