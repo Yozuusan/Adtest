@@ -24,6 +24,7 @@ export const buildApiUrl = (endpoint: string): string => {
 export const TEMPLATE_API = {
   generateTemplate: buildApiUrl('/auto-deploy/generate-template'),
   getQuota: (shop: string) => buildApiUrl(`/auto-deploy/quota/${shop}`),
+  getProducts: (shop: string) => buildApiUrl(`/auto-deploy/products/${shop}`),
   upgradePlan: buildApiUrl('/auto-deploy/upgrade-plan'),
   deleteTemplate: (templateId: string) => buildApiUrl(`/auto-deploy/template/${templateId}`)
 } as const;

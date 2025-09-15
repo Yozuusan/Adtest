@@ -24,7 +24,21 @@ interface Product {
   id: string;
   title: string;
   handle: string;
+  status?: string;
+  product_type?: string;
+  vendor?: string;
+  tags?: string;
+  image?: {
+    src: string;
+    alt?: string;
+  } | null;
   hasTemplate?: boolean;
+  templateInfo?: {
+    template_name: string;
+    deployment_status: string;
+    test_url: string;
+    created_at: string;
+  } | null;
 }
 
 interface TemplateStore {
@@ -38,7 +52,7 @@ interface TemplateStore {
 
   // Actions
   fetchQuotaAndTemplates: (shop: string) => Promise<void>;
-  fetchProducts: () => Promise<void>;
+  fetchProducts: (shop: string) => Promise<void>;
   generateTemplate: (shop: string, productId: string, productHandle: string) => Promise<boolean>;
   deleteTemplate: (shop: string, templateId: string) => Promise<boolean>;
   setGenerating: (productId: string | null) => void;
@@ -80,27 +94,45 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
     }
   },
 
-  fetchProducts: async () => {
+  fetchProducts: async (shop: string) => {
     try {
-      // For now, use mock data
-      // TODO: Replace with actual Shopify API call
-      const mockProducts: Product[] = [
-        { id: 'gid://shopify/Product/123456', title: 'Savon Premium Bio', handle: 'savon-premium-bio' },
-        { id: 'gid://shopify/Product/234567', title: 'Crème Hydratante', handle: 'creme-hydratante' },
-        { id: 'gid://shopify/Product/345678', title: 'Huile d\'Argan', handle: 'huile-argan' },
-        { id: 'gid://shopify/Product/456789', title: 'Pack Famille', handle: 'pack-famille' },
-        { id: 'gid://shopify/Product/567890', title: 'Shampoing Naturel', handle: 'shampoing-naturel' }
-      ];
+      set({ isLoading: true, error: null });
       
-      const { templates } = get();
-      const productsWithTemplates = mockProducts.map(product => ({
-        ...product,
-        hasTemplate: templates.some(t => t.product_handle === product.handle)
-      }));
+      console.log(`🔍 Fetching products for shop: ${shop}`);
       
-      set({ products: productsWithTemplates });
+      const response = await fetch(TEMPLATE_API.getProducts(shop));
+      const data = await response.json();
+      
+      if (data.success) {
+        const products = data.data.map((product: any) => ({
+          id: product.id,
+          title: product.title,
+          handle: product.handle,
+          status: product.status,
+          product_type: product.product_type,
+          vendor: product.vendor,
+          tags: product.tags,
+          image: product.image,
+          hasTemplate: product.hasTemplate,
+          templateInfo: product.templateInfo
+        }));
+        
+        console.log(`✅ Successfully fetched ${products.length} products`);
+        set({ products, isLoading: false });
+      } else {
+        set({ 
+          error: data.error || 'Failed to fetch products',
+          isLoading: false,
+          products: []
+        });
+      }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to fetch products' });
+      console.error('Error fetching products:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch products',
+        isLoading: false,
+        products: []
+      });
     }
   },
 

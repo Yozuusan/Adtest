@@ -43,7 +43,7 @@ export function Templates() {
   }, [fetchQuotaAndTemplates]);
 
   const handleFetchProducts = async () => {
-    await fetchProducts();
+    await fetchProducts(shopDomain);
     setShowProductSelector(true);
   };
 
@@ -155,10 +155,35 @@ export function Templates() {
                   }`}
                 >
                   <div className="flex items-center">
-                    <Package className="h-5 w-5 text-gray-400 mr-3" />
-                    <div>
-                      <p className="font-medium">{product.title}</p>
+                    {product.image?.src ? (
+                      <img 
+                        src={product.image.src} 
+                        alt={product.image.alt || product.title}
+                        className="h-12 w-12 rounded-md object-cover mr-3"
+                      />
+                    ) : (
+                      <Package className="h-12 w-12 text-gray-400 mr-3 p-2 bg-gray-100 rounded-md" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{product.title}</p>
                       <p className="text-sm text-gray-600">{product.handle}</p>
+                      <div className="flex items-center mt-1 space-x-2">
+                        {product.status && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              product.status === 'active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {product.status}
+                          </Badge>
+                        )}
+                        {product.vendor && (
+                          <span className="text-xs text-gray-500">{product.vendor}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
