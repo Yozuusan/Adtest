@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Copier package files et installer toutes les deps (prod + dev pour build)
 COPY package*.json ./
-RUN npm ci --no-optional --no-audit --no-fund --silent
+RUN npm install --no-optional --no-audit --no-fund --silent
 
 # Copier tsconfig et source pour le build
 COPY tsconfig.json ./
