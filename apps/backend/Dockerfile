@@ -8,19 +8,16 @@ ENV CI=true
 
 WORKDIR /app
 
-# Copier package files et installer deps en une seule couche (cache layer)
+# Copier package files et installer toutes les deps (prod + dev pour build)
 COPY package*.json ./
-RUN npm ci --only=production --no-optional --no-audit --no-fund --silent
+RUN npm ci --no-optional --no-audit --no-fund --silent
 
-# Copier tsconfig pour le build
+# Copier tsconfig et source pour le build
 COPY tsconfig.json ./
-
-# Installer deps de dev temporairement pour le build
-RUN npm install typescript --no-save --silent
-
-# Copier source et builder en une seule étape
 COPY src/ ./src/
-RUN npm run build && npm uninstall typescript && npm cache clean --force
+
+# Build et cleanup des deps dev
+RUN npm run build && npm prune --production && npm cache clean --force
 
 # Setup utilisateur et permissions
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
