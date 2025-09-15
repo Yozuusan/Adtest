@@ -1125,10 +1125,12 @@ if (document.readyState === 'loading') {
       
       console.log(`📦 Fetching products for ${shop} (status: ${status}, limit: ${limit})`);
       
-      const token = await this.getAccessToken(shop);
-      if (!token) {
+      const shopToken = await getShopToken(shop);
+      if (!shopToken || !shopToken.access_token) {
         throw new Error(`No access token found for shop: ${shop}`);
       }
+      
+      const token = shopToken.access_token;
 
       // GraphQL query pour récupérer les produits
       const query = `
