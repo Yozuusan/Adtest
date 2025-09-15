@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Configuration Supabase optionnelle pour éviter les crashes de démarrage
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
+
+console.log('🔧 QuotaService:', supabase ? 'Supabase connecté' : 'Mode fallback (sans Supabase)');
 
 export interface QuotaInfo {
   plan_type: string;
@@ -37,6 +42,18 @@ class QuotaService {
    */
   async checkQuota(shopDomain: string): Promise<QuotaInfo> {
     try {
+      // Si Supabase n'est pas disponible, retourner un quota par défaut
+      if (!supabase) {
+        console.log('🔄 QuotaService: Mode fallback - quota basic par défaut');
+        return {
+          plan_type: 'basic',
+          templates_limit: 1,
+          templates_used: 0,
+          templates_remaining: 1,
+          quota_exceeded: false
+        };
+      }
+
       const { data, error } = await supabase.rpc('check_template_quota', {
         p_shop_domain: shopDomain
       });
@@ -71,6 +88,12 @@ class QuotaService {
    */
   async incrementUsage(shopDomain: string): Promise<boolean> {
     try {
+      // Si Supabase n'est pas disponible, simuler un succès
+      if (!supabase) {
+        console.log('🔄 QuotaService: Mode fallback - increment usage simulé');
+        return true;
+      }
+
       const { data, error } = await supabase.rpc('increment_template_usage', {
         p_shop_domain: shopDomain
       });
