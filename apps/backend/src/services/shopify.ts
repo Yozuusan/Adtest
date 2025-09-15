@@ -1117,6 +1117,114 @@ if (document.readyState === 'loading') {
   }
 
   /**
+   * Récupérer les produits d'une boutique
+   */
+  async getProducts(shop: string, options: { status?: string; limit?: number } = {}): Promise<any[]> {
+    try {
+      const { status = 'active', limit = 50 } = options;
+      
+      console.log(`📦 Fetching products for ${shop} (status: ${status}, limit: ${limit})`);
+      
+      const token = await this.getAccessToken(shop);
+      if (!token) {
+        throw new Error(`No access token found for shop: ${shop}`);
+      }
+
+      // GraphQL query pour récupérer les produits
+      const query = `
+        query getProducts($first: Int!, $query: String) {
+          products(first: $first, query: $query) {
+            edges {
+              node {
+                id
+                title
+                handle
+                status
+                productType
+                vendor
+                tags
+                createdAt
+                updatedAt
+                featuredImage {
+                  url
+                  altText
+                }
+                images(first: 1) {
+                  edges {
+                    node {
+                      url
+                      altText
+                    }
+                  }
+                }
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      `;
+      
+      const variables = {
+        first: Math.min(limit, 250), // Shopify limite à 250
+        query: status !== 'all' ? `status:${status}` : undefined
+      };
+
+      const response = await fetch(`https://${shop}/admin/api/2023-10/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, variables })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Shopify API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      // Transformer les données GraphQL en format plus simple
+      const products = data.data.products.edges.map((edge: any) => {
+        const node = edge.node;
+        return {
+          id: node.id,
+          title: node.title,
+          handle: node.handle,
+          status: node.status.toLowerCase(),
+          product_type: node.productType,
+          vendor: node.vendor,
+          tags: node.tags.join(', '),
+          created_at: node.createdAt,
+          updated_at: node.updatedAt,
+          image: node.featuredImage ? {
+            src: node.featuredImage.url,
+            alt: node.featuredImage.altText
+          } : (node.images.edges.length > 0 ? {
+            src: node.images.edges[0].node.url,
+            alt: node.images.edges[0].node.altText
+          } : null)
+        };
+      });
+
+      console.log(`✅ Successfully fetched ${products.length} products for ${shop}`);
+      return products;
+
+    } catch (error) {
+      console.error(`Error fetching products for ${shop}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Génère un state sécurisé pour OAuth
    */
   private generateState(shop: string): string {

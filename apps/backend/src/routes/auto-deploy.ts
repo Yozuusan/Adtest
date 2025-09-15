@@ -569,6 +569,81 @@ async function logTemplateGeneration(shop: string, productHandle: string, templa
 }
 
 /**
+ * GET /auto-deploy/products/:shop
+ * Récupérer les produits actifs de la boutique Shopify
+ */
+router.get('/products/:shop', async (req, res, next) => {
+  try {
+    const { shop } = req.params;
+    const { status = 'active', limit = '50' } = req.query;
+    
+    console.log(`📦 Fetching products for shop: ${shop}`);
+    
+    // Vérifier l'authentification
+    const isAuthenticated = await shopifyService.isShopAuthenticated(shop);
+    if (!isAuthenticated) {
+      throw createError('Shop not authenticated. Please reconnect your Shopify store.', 401);
+    }
+
+    // Récupérer les produits via l'API Shopify
+    const products = await shopifyService.getProducts(shop, {
+      status: status as string,
+      limit: parseInt(limit as string, 10)
+    });
+
+    if (!products || products.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'No products found'
+      });
+    }
+
+    // Vérifier quels produits ont déjà des templates
+    const productsWithTemplateStatus = await Promise.all(
+      products.map(async (product: any) => {
+        const existingTemplate = await quotaService.hasProductTemplate(shop, product.id);
+        return {
+          id: product.id,
+          title: product.title,
+          handle: product.handle,
+          status: product.status,
+          created_at: product.created_at,
+          updated_at: product.updated_at,
+          product_type: product.product_type,
+          vendor: product.vendor,
+          tags: product.tags,
+          image: product.image?.src || null,
+          hasTemplate: !!existingTemplate,
+          templateInfo: existingTemplate ? {
+            template_name: existingTemplate.template_name,
+            deployment_status: existingTemplate.deployment_status,
+            test_url: existingTemplate.test_url,
+            created_at: existingTemplate.created_at
+          } : null
+        };
+      })
+    );
+
+    console.log(`✅ Found ${productsWithTemplateStatus.length} products for ${shop}`);
+
+    res.json({
+      success: true,
+      data: productsWithTemplateStatus,
+      pagination: {
+        total: productsWithTemplateStatus.length,
+        limit: parseInt(limit as string, 10),
+        has_more: products.length >= parseInt(limit as string, 10)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    next(error instanceof Error ? createError(error.message, 500) : createError('Failed to fetch products', 500));
+  }
+});
+
+/**
  * Diviser un array en chunks
  */
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
@@ -579,4 +654,4 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
   return chunks;
 }
 
-export default router;
+export default router;// Force Railway redeploy Mar 16 sep 2025 01:02:28 CEST
