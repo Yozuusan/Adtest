@@ -270,13 +270,13 @@ router.get('/quota/:shop', async (req, res, next) => {
     }
 
     const quotaInfo = await quotaService.checkQuota(shop);
-    const templateUsage = await quotaService.getTemplateUsage(shop);
+    const templateUsage = await quotaService.getTemplatesList(shop);
     
     res.json({
       success: true,
       data: {
         quota: quotaInfo,
-        templates: templateUsage.map(template => ({
+        templates: (templateUsage || []).map((template: any) => ({
           id: template.id,
           template_name: template.template_name,
           product_handle: template.product_handle,
