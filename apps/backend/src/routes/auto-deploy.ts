@@ -416,18 +416,18 @@ async function waitForMappingCompletion(jobId: string, timeoutMs: number = 18000
       const response = await fetch(`http://localhost:3001/mapping/status/${jobId}?shop_id=${jobId.split('-')[0]}`);
       
       if (response.ok) {
-        const status = await response.json();
+        const status = await response.json() as any;
         
-        if (status.data.status === 'completed' && status.data.result) {
+        if (status.data?.status === 'completed' && status.data?.result) {
           console.log(`✅ Mapping completed for job ${jobId}`);
           return status.data.result.adapter;
         }
         
-        if (status.data.status === 'failed') {
-          throw new Error(`Mapping job failed: ${status.data.error}`);
+        if (status.data?.status === 'failed') {
+          throw new Error(`Mapping job failed: ${status.data?.error}`);
         }
         
-        console.log(`⏳ Mapping in progress... Status: ${status.data.status}, Progress: ${status.data.progress || 0}%`);
+        console.log(`⏳ Mapping in progress... Status: ${status.data?.status}, Progress: ${status.data?.progress || 0}%`);
       }
       
       // Attendre avant le prochain poll
@@ -548,11 +548,11 @@ async function processSingleProduct(shop: string, product: any): Promise<any> {
   });
   
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json() as any;
     throw new Error(error.error?.message || 'Failed to process product');
   }
   
-  const result = await response.json();
+  const result = await response.json() as any;
   return result.data;
 }
 

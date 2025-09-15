@@ -781,9 +781,9 @@ router.get('/theme-access', async (req, res) => {
       };
 
       if (themesResponse.ok) {
-        const themesData = await themesResponse.json();
-        const mainTheme = themesData.themes.find((theme: any) => theme.role === 'main');
-        themesResult.themes_count = themesData.themes.length;
+        const themesData = await themesResponse.json() as any;
+        const mainTheme = themesData.themes?.find((theme: any) => theme.role === 'main');
+        themesResult.themes_count = themesData.themes?.length || 0;
         themesResult.main_theme = mainTheme ? {
           id: mainTheme.id,
           name: mainTheme.name,
@@ -812,11 +812,11 @@ router.get('/theme-access', async (req, res) => {
         };
 
         if (assetsResponse.ok) {
-          const assetsData = await assetsResponse.json();
-          assetsResult.assets_count = assetsData.assets.length;
+          const assetsData = await assetsResponse.json() as any;
+          assetsResult.assets_count = assetsData.assets?.length || 0;
           
           // Check for existing Adlign files
-          const adlignFiles = assetsData.assets.filter((asset: any) => 
+          const adlignFiles = assetsData.assets?.filter((asset: any) => 
             asset.key.includes('adlign') || 
             asset.key === 'snippets/adlign_metaobject_injector.liquid' ||
             asset.key === 'assets/adlign-micro-kernel.js'
