@@ -3,7 +3,6 @@ import { Wand2, Package, Plus, Trash2, ExternalLink, Crown, Loader, AlertCircle 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTemplateStore } from '@/stores/useTemplateStore';
 
 const PLAN_COLORS = {
@@ -21,7 +20,6 @@ const PLAN_NAMES = {
 };
 
 export function Templates() {
-  const { user } = useAuth();
   const [showProductSelector, setShowProductSelector] = useState(false);
   
   const {
@@ -34,8 +32,7 @@ export function Templates() {
     fetchQuotaAndTemplates,
     fetchProducts,
     generateTemplate,
-    deleteTemplate,
-    setError
+    deleteTemplate
   } = useTemplateStore();
   
   const shopDomain = localStorage.getItem('shopDomain') || 'adlign.myshopify.com';
@@ -46,7 +43,7 @@ export function Templates() {
   }, [fetchQuotaAndTemplates]);
 
   const handleFetchProducts = async () => {
-    await fetchProducts(shopDomain);
+    await fetchProducts();
     setShowProductSelector(true);
   };
 

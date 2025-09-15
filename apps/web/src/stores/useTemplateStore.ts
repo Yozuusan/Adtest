@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { TEMPLATE_API, buildApiUrl } from '@/config/api';
+import { TEMPLATE_API } from '@/config/api';
 
 interface QuotaInfo {
   plan_type: string;
@@ -38,7 +38,7 @@ interface TemplateStore {
 
   // Actions
   fetchQuotaAndTemplates: (shop: string) => Promise<void>;
-  fetchProducts: (shop: string) => Promise<void>;
+  fetchProducts: () => Promise<void>;
   generateTemplate: (shop: string, productId: string, productHandle: string) => Promise<boolean>;
   deleteTemplate: (shop: string, templateId: string) => Promise<boolean>;
   setGenerating: (productId: string | null) => void;
@@ -80,7 +80,7 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
     }
   },
 
-  fetchProducts: async (shop: string) => {
+  fetchProducts: async () => {
     try {
       // For now, use mock data
       // TODO: Replace with actual Shopify API call

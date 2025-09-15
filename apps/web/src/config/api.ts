@@ -7,7 +7,6 @@ const API_URLS = {
 
 // Détecter l'environnement
 const isDevelopment = import.meta.env.DEV;
-const isProduction = import.meta.env.PROD;
 
 // URL de base de l'API
 export const API_BASE_URL = isDevelopment 
